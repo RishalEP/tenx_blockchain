@@ -6,14 +6,17 @@ require("@nomiclabs/hardhat-ethers");
 
 const {
   CUSTOM_RPC_URL,
-  TESTNET_RPC_URL,
+  MUMBAI_RPC_URL,
+  BSC_TESTNET,
+  MAINNET,
   ADMIN_PRIVATE_KEY,
   ETHERSCAN_API_KEY,
+  CUSTOM_CHAIN_ID
 } = require("./config/index");
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: "0.8.13",
+    version: "0.8.18",
     settings: {
       optimizer: {
         enabled: true,
@@ -28,12 +31,27 @@ module.exports = {
     },
     custom: {
       url: CUSTOM_RPC_URL || "",
-      accounts: [ADMIN_PRIVATE_KEY],
+      accounts: [ADMIN_PRIVATE_KEY.custom],
+      chainId: CUSTOM_CHAIN_ID
     },
-    testnet: {
-      url: TESTNET_RPC_URL,
-      accounts: [ADMIN_PRIVATE_KEY],
+    mumbai: {
+      url: MUMBAI_RPC_URL,
+      accounts: [ADMIN_PRIVATE_KEY.testnet],
+      chainId: 80001
     },
+    bsc_testnet: {
+      url: BSC_TESTNET,
+      accounts: [ADMIN_PRIVATE_KEY.testnet],
+      chainId: 97
+
+    },
+    bsc: {
+      url: MAINNET,
+      // accounts: [process.env.OWNER_PRIVATE_KEY],
+      chainId: 56
+
+    }
+
   },
   etherscan: {
     // Your API key for Etherscan
