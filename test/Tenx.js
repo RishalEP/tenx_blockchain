@@ -50,7 +50,7 @@ const {
         const { tenX, owner } = await loadFixture(deployTenxFixture);
         expect(await tenX.referralLevels()).to.equal(referalPercantage.length);
       });
-  
+
       it("Should return token symbol for custom Busd Token", async function () {
         const { busd } = await loadFixture(
           deployTenxFixture
