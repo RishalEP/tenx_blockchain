@@ -11,7 +11,7 @@ const {
     referalPercantage,
     months,
     pricing
-} = require('./helper/arguments')
+} = require('../helper/arguments')
 
 
 async function main() {

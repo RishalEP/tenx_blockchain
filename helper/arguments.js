@@ -48,6 +48,6 @@ module.exports = {
   reinvestSubWallet : reinvest.subWallet,
   referalPercantage : [1000, 800, 600, 300],
   months : [1, 3, 6, 12],
-  pricing : [199, 538, 1194, 2388]
+  pricing : [1, 2, 3, 4]
 }
 

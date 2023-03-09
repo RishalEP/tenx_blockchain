@@ -699,7 +699,7 @@
             "type": "function"
         }
     ],
-    "TenX_ADDRESS": "0xec2Ed536715Edf357f6DA4C22C6D67ac54f3c728",
+    "TenX_ADDRESS": "0xD0a28F6532ED82A94A401D2107Abf2bE202C81f5",
     "BUSD_ABI": [
         {
             "inputs": [],
@@ -995,5 +995,5 @@
             "type": "function"
         }
     ],
-    "BUSD_ADDRESS": "0xB392aeAA94C50E1d5F4DcF82280e9387670ad415"
+    "BUSD_ADDRESS": "0xb7a940555c65512B9620316F7bb2701397580070"
 }
