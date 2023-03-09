@@ -26,8 +26,10 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      chainId: 31337,
-      allowUnlimitedContractSize: true, // use this for this Error -> InvalidInputError: Transaction gas limit is 9999024856 and exceeds block gas limit of 30000000
+      forking: {
+        url: MUMBAI_RPC_URL,
+        blockNumber: 32897798
+      }
     },
     custom: {
       url: CUSTOM_RPC_URL || "",
