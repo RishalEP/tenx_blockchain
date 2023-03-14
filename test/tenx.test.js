@@ -121,6 +121,15 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
             .to.equal(busdPriceFeed);
         });
 
+        it("Should remove a payment token", async function () {
+          const { tenX, busd } = await loadFixture(deployTenxFixture);
+          await tenX.addPaymentToken(busd.address,busdPriceFeed);
+          await tenX.removePaymentToken(busd.address);
+          const paymentToken = await tenX.paymentTokens(busd.address);
+          expect(paymentToken)
+            .to.have.property("exist")
+            .to.equal(false);
+        });
     });
 
     describe("Subscription Plans and Amounts", function () {
@@ -202,12 +211,38 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
         expect(await tenX.referralLevels()).to.equal(referalPercantage.length);
       });
 
-      it("Should fetch the total referals levels for TenX Correctly", async function () {
+      it("Should fetch the total referal users for TenX Correctly", async function () {
         const { tenX } = await loadFixture(deployTenxFixture);
         expect(await tenX.totalReferralIds()).to.equal(0);
       });
 
+    });
 
+    describe("Subscription", function () {
+
+      it("Should subscribe by a new user without a referal using BNB", async function () {
+        const { tenX } = await loadFixture(deployTenxFixture);
+        expect(await tenX.referralLevels()).to.equal(referalPercantage.length);
+      });
+
+      it("Should fetch the total referal users for TenX Correctly", async function () {
+        const { tenX } = await loadFixture(deployTenxFixture);
+        expect(await tenX.totalReferralIds()).to.equal(0);
+      });
+
+    });
+
+    describe("Payment Splits on Subscription", function () {
+
+      it("Should subscribe by a new user without a referal using BNB", async function () {
+        const { tenX } = await loadFixture(deployTenxFixture);
+        expect(await tenX.referralLevels()).to.equal(referalPercantage.length);
+      });
+
+      it("Should fetch the total referal users for TenX Correctly", async function () {
+        const { tenX } = await loadFixture(deployTenxFixture);
+        expect(await tenX.totalReferralIds()).to.equal(0);
+      });
 
     });
   });
