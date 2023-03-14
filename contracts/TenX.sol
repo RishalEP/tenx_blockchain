@@ -65,7 +65,7 @@ contract TenX is Ownable {
 
     event Subscription(
         uint256 amount,
-        uint256 period,
+        uint120 period,
         address indexed subscriber,
         address paymentToken
     );
@@ -249,7 +249,7 @@ contract TenX is Ownable {
 
         emit Subscription(
             amount,
-            subscriptionValidity,
+            months,
             msg.sender,
             paymentToken
         );
