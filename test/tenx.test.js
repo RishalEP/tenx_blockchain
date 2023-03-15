@@ -260,6 +260,26 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
           ethers.constants.AddressZero);
       });
 
+      it("Should subscribe by a new user with a valid referal", async function () {
+        const { tenX,user1 } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+        await expect(tenX.connect(user1).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          0,
+          ethers.constants.AddressZero,
+          { value: ethers.BigNumber.from(subscriptionAmount) })
+        ).to.emit(tenX, "Subscription").withArgs(
+          subscriptionAmount,
+          months[0],
+          user1.address,
+          ethers.constants.AddressZero);
+      });
+
     });
 
     describe("Payment Splits on Subscription", function () {
