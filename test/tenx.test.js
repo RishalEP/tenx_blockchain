@@ -22,9 +22,9 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
     async function deployTenxFixture() {
 
       // Contracts are deployed using the first signer/account by default
-      const [owner, holder1, holder2, holder3, holder4, reinvest, tempAddress, user1, user2] = await ethers.getSigners();
+      const [owner, holder1, holder2, holder3, holder4, reinvest, tempWallet, user1, user2, user3, user4] = await ethers.getSigners();
       const shareHolderWallets = [holder1.address, holder2.address, holder3.address, holder4.address]
-
+      const referalUsers = [user1, user2, user3, user4]
       const Tenx = await ethers.getContractFactory("TenX");
       const tenX = await Tenx.deploy(
             shareHolderWallets,
@@ -40,7 +40,7 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
       const Busd = await ethers.getContractFactory("BUSD");
       const busd = await Busd.deploy();
   
-      return { tenX, busd, shareHolderWallets, owner, reinvest, tempAddress, user1, user2 };
+      return { tenX, busd, shareHolderWallets, owner, reinvest, tempWallet, user1, user2, referalUsers };
     }
   
     describe("Contract Deployment", function () {
@@ -73,10 +73,10 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
       });
 
       it("Should change the ownership correctly", async function () {
-        const { tenX, owner, tempAddress } = await loadFixture(deployTenxFixture);
+        const { tenX, owner, tempWallet } = await loadFixture(deployTenxFixture);
         expect(await tenX.owner()).to.equal(owner.address);
-        await tenX.transferOwnership(tempAddress.address)
-        expect(await tenX.owner()).to.equal(tempAddress.address);
+        await tenX.transferOwnership(tempWallet.address)
+        expect(await tenX.owner()).to.equal(tempWallet.address);
       });
 
     });
@@ -102,21 +102,21 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
       });
 
       it("Should change share holder", async function () {
-        const { tenX, tempAddress, shareHolderWallets } = await loadFixture(
+        const { tenX, tempWallet, shareHolderWallets } = await loadFixture(
           deployTenxFixture
         );
         expect(await tenX.shareHolderWallet(0)).to.equal(shareHolderWallets[0])
-        await tenX.changeShareHolder(tempAddress.address,0)
-        expect(await tenX.shareHolderWallet(0)).to.equal(tempAddress.address)
+        await tenX.changeShareHolder(tempWallet.address,0)
+        expect(await tenX.shareHolderWallet(0)).to.equal(tempWallet.address)
       });
 
       it("Should change reinvestment wallet", async function () {
-        const { tenX, tempAddress, reinvest } = await loadFixture(
+        const { tenX, tempWallet, reinvest } = await loadFixture(
           deployTenxFixture
         );
         expect(await tenX.reInvestmentWallet()).to.equal(reinvest.address)
-        await tenX.changeReInvestmentWallet(tempAddress.address)
-        expect(await tenX.reInvestmentWallet()).to.equal(tempAddress.address)
+        await tenX.changeReInvestmentWallet(tempWallet.address)
+        expect(await tenX.reInvestmentWallet()).to.equal(tempWallet.address)
       });
 
     });
@@ -261,28 +261,298 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
       });
 
       it("Should subscribe by a new user with a valid referal", async function () {
-        const { tenX,user1 } = await loadFixture(deployTenxFixture);
+        const { tenX,user1,user2 } = await loadFixture(deployTenxFixture);
         await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
         const subscriptionAmount = await tenX.getSubscriptionAmount(
           months[0],
           ethers.constants.AddressZero
         );
-        await expect(tenX.connect(user1).subscribe(
+        await tenX.connect(user1).subscribe(
           ethers.BigNumber.from(subscriptionAmount),
           months[0],
           0,
           ethers.constants.AddressZero,
           { value: ethers.BigNumber.from(subscriptionAmount) })
+
+        const { referralId } = await tenX.users(user1.address)
+
+        await expect(tenX.connect(user2).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          referralId,
+          ethers.constants.AddressZero,
+          { value: ethers.BigNumber.from(subscriptionAmount) })
         ).to.emit(tenX, "Subscription").withArgs(
           subscriptionAmount,
           months[0],
-          user1.address,
+          user2.address,
           ethers.constants.AddressZero);
       });
 
+      it("Should revert if the referred by is not valid", async function () {
+        const { tenX,user2 } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+
+        await expect(tenX.connect(user2).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          1,
+          ethers.constants.AddressZero,
+          { value: ethers.BigNumber.from(subscriptionAmount) })
+        ).to.be.revertedWith("TenX: invalid referredBy");
+      });
+
+      it("Should revert if there is an amount mismatch", async function () {
+        const { tenX,user2 } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+
+        await expect(tenX.connect(user2).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          0,
+          ethers.constants.AddressZero,
+          { value: '1' })
+        ).to.be.revertedWith("TenX: msg.value not equal amount");
+      });
+      
+      it("Should revert if the plan does not exists", async function () {
+        const { tenX,user2 } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+
+        await expect(tenX.connect(user2).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          2,
+          0,
+          ethers.constants.AddressZero,
+          { value: ethers.BigNumber.from(subscriptionAmount) })
+        ).to.be.revertedWith("TenX: subscription plan doesn't exist");
+      });
     });
 
-    describe("Payment Splits on Subscription", function () {
+    describe("Subscription using BUSD",  function () {
+
+      it("Should subscribe by a new user without referals", async function () {
+        const { tenX,user1,busd } = await loadFixture(deployTenxFixture);
+        const decimals = await busd.decimals()
+        await busd.mint(user1.address,5000)
+        await busd.connect(user1).approve(tenX.address,1000 * Math.pow(10,decimals))
+        await tenX.addPaymentToken(busd.address,busdPriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          busd.address
+        );
+
+        await expect(tenX.connect(user1).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          0,
+          busd.address
+          )).to.emit(tenX, "Subscription").withArgs(
+          subscriptionAmount,
+          months[0],
+          user1.address,
+          busd.address);
+      });
+
+      it("Should subscribe by a new user with a valid referal", async function () {
+        const { tenX,user1,user2,busd } = await loadFixture(deployTenxFixture);
+        const decimals = await busd.decimals()
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        await busd.mint(user2.address,5000)
+        await busd.connect(user2).approve(tenX.address,1000 * Math.pow(10,decimals))
+        await tenX.addPaymentToken(busd.address,busdPriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+        await tenX.connect(user1).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          0,
+          ethers.constants.AddressZero,
+          { value: ethers.BigNumber.from(subscriptionAmount) })
+
+        const { referralId } = await tenX.users(user1.address)
+
+        const busdSubscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          busd.address
+        );
+
+        await expect(tenX.connect(user2).subscribe(
+          ethers.BigNumber.from(busdSubscriptionAmount),
+          months[0],
+          referralId,
+          busd.address
+          )).to.emit(tenX, "Subscription").withArgs(
+          busdSubscriptionAmount,
+          months[0],
+          user2.address,
+          busd.address);
+      });
+
+      it("Should revert if there is an amount mismatch", async function () {
+        const { tenX,user2,busd } = await loadFixture(deployTenxFixture);
+        const decimals = await busd.decimals()
+        await busd.mint(user2.address,5000)
+        await busd.connect(user2).approve(tenX.address,1000 * Math.pow(10,decimals))
+        await tenX.addPaymentToken(busd.address,busdPriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          busd.address
+        );
+
+        await expect(tenX.connect(user2).subscribe(
+          1,
+          months[0],
+          0,
+          ethers.constants.AddressZero)).to.be.revertedWith("TenX: msg.value not equal amount");
+      }); 
+    });
+
+    describe("Payment Splits on Subscriptions using BNB", function () {
+      it("Should split the payments among the share holders and reinvestor correctly for no referals", async function () {
+        const { tenX,user1,shareHolderWallets,reinvest } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+
+        let shareHoldersPreviousBalance = []
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderBalance = await ethers.provider.getBalance(holder);
+          shareHoldersPreviousBalance.push(shareHolderBalance)
+        }
+
+        const reinvestorPreviousBalance = await ethers.provider.getBalance(reinvest.address)
+
+       await tenX.connect(user1).subscribe(
+        ethers.BigNumber.from(subscriptionAmount),
+        months[0],
+        0,
+        ethers.constants.AddressZero,
+        { value: ethers.BigNumber.from(subscriptionAmount) })
+
+        let totalShareHolderAmount = 0
+
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderNewBalance = await ethers.provider.getBalance(holder);
+          const amountToBeUpdated = (Number(subscriptionAmount)) * shareHolderPercant[index]/10000
+          totalShareHolderAmount +=  amountToBeUpdated
+          expect(Number(shareHolderNewBalance))
+          .to.be.equal(Number(shareHoldersPreviousBalance[index])+Number(amountToBeUpdated))     
+        }
+        const reinvestAmountToUpdate = Number(subscriptionAmount) - totalShareHolderAmount
+        const reinvestorNewBalance = await ethers.provider.getBalance(reinvest.address);
+        expect(Number(reinvestorNewBalance))
+          .to.be.equal(Number(reinvestorPreviousBalance)+Number(reinvestAmountToUpdate))
+      });
+
+      it("Should split the payments among the share holders, reinvestors and referals correctly", async function () {
+        const { tenX,
+                referalUsers,
+                tempWallet,
+                shareHolderWallets,
+                reinvest } = await loadFixture(deployTenxFixture);
+                
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+
+        let referalUserPreviousBalance = {}
+        let mainReferalId = 0
+
+        for (const [index, user] of referalUsers.entries()) {
+          let referalId = 0
+          const subscriptionAmount = await tenX.getSubscriptionAmount(
+            months[0],
+            ethers.constants.AddressZero
+          );
+
+          if(index > 0){
+            const userInfo = await tenX.users(referalUsers[index-1].address)
+            referalId = Number(userInfo.referralId)
+          }
+
+          await tenX.connect(user).subscribe(
+            ethers.BigNumber.from(subscriptionAmount),
+            months[0],
+            referalId,
+            ethers.constants.AddressZero,
+            { value: ethers.BigNumber.from(subscriptionAmount) })
+            
+            const userBalance = await ethers.provider.getBalance(user.address);
+            referalUserPreviousBalance = {...referalUserPreviousBalance,...{[user.address]:userBalance}}
+
+            if(index === referalUsers.length-1){
+              const userInfo = await tenX.users(user.address)
+              mainReferalId = Number(userInfo.referralId)
+            }
+        }
+
+        let shareHoldersPreviousBalance = []
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderBalance = await ethers.provider.getBalance(holder);
+          shareHoldersPreviousBalance.push(shareHolderBalance)
+        }
+
+        const reinvestorPreviousBalance = await ethers.provider.getBalance(reinvest.address)
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[1],
+          ethers.constants.AddressZero
+        );
+
+       await tenX.connect(tempWallet).subscribe(
+        ethers.BigNumber.from(subscriptionAmount),
+        months[1],
+        mainReferalId,
+        ethers.constants.AddressZero,
+        { value: ethers.BigNumber.from(subscriptionAmount) })
+
+        let totalShareHolderAmount = 0
+        let totalReferalAmount = 0
+
+        const subscriberInfo = await tenX.users(tempWallet.address)
+        fetchReferalId = Number(subscriberInfo.referredBy)
+
+        for (const [index, value] of referalPercantage.entries()) {
+          console.log({index})
+          if(fetchReferalId !== 0){
+            const referalUser = await tenX.referralIdToUser(fetchReferalId)
+            const referalUserNewBalance = await ethers.provider.getBalance(referalUser);
+            const amountToBeUpdated = (Number(subscriptionAmount)) * (value/10000)
+            totalReferalAmount += amountToBeUpdated
+            expect(Number(referalUserNewBalance))
+              .to.be.greaterThanOrEqual(Number(referalUserPreviousBalance[referalUser])+Number(amountToBeUpdated))
+            const subscriberInfo = await tenX.users(referalUser)
+            fetchReferalId = Number(subscriberInfo.referredBy)
+          }
+        }
+
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderNewBalance = await ethers.provider.getBalance(holder);
+          const amountToBeUpdated = ((Number(subscriptionAmount))-totalReferalAmount) * shareHolderPercant[index]/10000
+          totalShareHolderAmount +=  amountToBeUpdated
+          expect(Number(shareHolderNewBalance))
+          .to.be.equal(Number(shareHoldersPreviousBalance[index])+Number(amountToBeUpdated))     
+        }
+
+        const reinvestAmountToUpdate = Number(subscriptionAmount) - (totalShareHolderAmount - totalReferalAmount)
+        const reinvestorNewBalance = await ethers.provider.getBalance(reinvest.address);
+        expect(Number(reinvestorNewBalance))
+          .to.be.equal(Number(reinvestorPreviousBalance)+Number(reinvestAmountToUpdate))
+        });
     });
 
   });

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract BUSD is ERC20 {
-    constructor() ERC20("Busd Token", "BUSD") {
+    constructor() ERC20("BUSD Token", "BUSD") {
         _mint(msg.sender, 500000 * 10 ** decimals());
     }
 
@@ -14,6 +14,6 @@ contract BUSD is ERC20 {
     }
 
     function mint(address to, uint256 amount) public {
-        _mint(to, amount);
+        _mint(to, amount * 10 ** decimals());
     }
 }
