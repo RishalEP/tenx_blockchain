@@ -22,7 +22,7 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
     async function deployTenxFixture() {
 
       // Contracts are deployed using the first signer/account by default
-      const [owner, holder1, holder2, holder3, holder4, reinvest, tempAddress] = await ethers.getSigners();
+      const [owner, holder1, holder2, holder3, holder4, reinvest, tempAddress, user1, user2] = await ethers.getSigners();
       const shareHolderWallets = [holder1.address, holder2.address, holder3.address, holder4.address]
 
       const Tenx = await ethers.getContractFactory("TenX");
@@ -40,15 +40,10 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
       const Busd = await ethers.getContractFactory("BUSD");
       const busd = await Busd.deploy();
   
-      return { tenX, busd, shareHolderWallets, owner, reinvest, tempAddress };
+      return { tenX, busd, shareHolderWallets, owner, reinvest, tempAddress, user1, user2 };
     }
   
     describe("Contract Deployment", function () {
-
-      it("Should set the right owner for TenX", async function () {
-        const { tenX, owner } = await loadFixture(deployTenxFixture);
-        expect(await tenX.owner()).to.equal(owner.address);
-      });
 
       it("Should return token symbol for custom Busd Token", async function () {
         const { busd } = await loadFixture(
@@ -66,6 +61,22 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
 
         expect(Number(await tenX.BNBFromFailedTransfers())).to.equal(0)
 
+      });
+
+    });
+
+    describe("Contract OwnerShip", function () {
+
+      it("Should fetch the right owner for TenX", async function () {
+        const { tenX, owner } = await loadFixture(deployTenxFixture);
+        expect(await tenX.owner()).to.equal(owner.address);
+      });
+
+      it("Should change the ownership correctly", async function () {
+        const { tenX, owner, tempAddress } = await loadFixture(deployTenxFixture);
+        expect(await tenX.owner()).to.equal(owner.address);
+        await tenX.transferOwnership(tempAddress.address)
+        expect(await tenX.owner()).to.equal(tempAddress.address);
       });
 
     });
@@ -97,6 +108,15 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
         expect(await tenX.shareHolderWallet(0)).to.equal(shareHolderWallets[0])
         await tenX.changeShareHolder(tempAddress.address,0)
         expect(await tenX.shareHolderWallet(0)).to.equal(tempAddress.address)
+      });
+
+      it("Should change reinvestment wallet", async function () {
+        const { tenX, tempAddress, reinvest } = await loadFixture(
+          deployTenxFixture
+        );
+        expect(await tenX.reInvestmentWallet()).to.equal(reinvest.address)
+        await tenX.changeReInvestmentWallet(tempAddress.address)
+        expect(await tenX.reInvestmentWallet()).to.equal(tempAddress.address)
       });
 
     });
@@ -218,31 +238,31 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
 
     });
 
-    describe("Subscription", function () {
+    describe("Subscription using BNB",  function () {
 
-      it("Should subscribe by a new user without a referal using BNB", async function () {
-        const { tenX } = await loadFixture(deployTenxFixture);
-        expect(await tenX.referralLevels()).to.equal(referalPercantage.length);
-      });
-
-      it("Should fetch the total referal users for TenX Correctly", async function () {
-        const { tenX } = await loadFixture(deployTenxFixture);
-        expect(await tenX.totalReferralIds()).to.equal(0);
+      it("Should subscribe by a new user without referals", async function () {
+        const { tenX,user1 } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          ethers.constants.AddressZero
+        );
+        await expect(tenX.connect(user1).subscribe(
+          ethers.BigNumber.from(subscriptionAmount),
+          months[0],
+          0,
+          ethers.constants.AddressZero,
+          { value: ethers.BigNumber.from(subscriptionAmount) })
+        ).to.emit(tenX, "Subscription").withArgs(
+          subscriptionAmount,
+          months[0],
+          user1.address,
+          ethers.constants.AddressZero);
       });
 
     });
 
     describe("Payment Splits on Subscription", function () {
-
-      it("Should subscribe by a new user without a referal using BNB", async function () {
-        const { tenX } = await loadFixture(deployTenxFixture);
-        expect(await tenX.referralLevels()).to.equal(referalPercantage.length);
-      });
-
-      it("Should fetch the total referal users for TenX Correctly", async function () {
-        const { tenX } = await loadFixture(deployTenxFixture);
-        expect(await tenX.totalReferralIds()).to.equal(0);
-      });
-
     });
+
   });
