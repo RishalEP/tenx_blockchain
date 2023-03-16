@@ -1,9 +1,11 @@
 const {
-    time,
     loadFixture,
   } = require("@nomicfoundation/hardhat-network-helpers");
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
+const chai = require("chai");
+const { BN } = require('@openzeppelin/test-helpers');
+const chaiBN = require('chai-bn');
+chai.use(chaiBN(BN));
 const { 
     shareHolderPercant, 
     referalPercantage, 
@@ -450,15 +452,15 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
 
         for (const [index, holder] of shareHolderWallets.entries()) {
           const shareHolderNewBalance = await ethers.provider.getBalance(holder);
-          const amountToBeUpdated = (Number(subscriptionAmount)) * shareHolderPercant[index]/10000
-          totalShareHolderAmount +=  amountToBeUpdated
-          expect(Number(shareHolderNewBalance))
-          .to.be.equal(Number(shareHoldersPreviousBalance[index])+Number(amountToBeUpdated))     
+          const amountToBeUpdated = subscriptionAmount.mul(shareHolderPercant[index]).div(10000)
+          totalShareHolderAmount =  amountToBeUpdated.add(totalShareHolderAmount)
+          expect(shareHolderNewBalance)
+          .to.be.equal(shareHoldersPreviousBalance[index].add(amountToBeUpdated))     
         }
-        const reinvestAmountToUpdate = Number(subscriptionAmount) - totalShareHolderAmount
+        const reinvestAmountToUpdate = subscriptionAmount.sub(totalShareHolderAmount)
         const reinvestorNewBalance = await ethers.provider.getBalance(reinvest.address);
-        expect(Number(reinvestorNewBalance))
-          .to.be.equal(Number(reinvestorPreviousBalance)+Number(reinvestAmountToUpdate))
+        expect(reinvestorNewBalance)
+          .to.be.equal(reinvestorPreviousBalance.add(reinvestAmountToUpdate))
       });
 
       it("Should split the payments among the share holders, reinvestors and referals correctly", async function () {
@@ -509,50 +511,194 @@ const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
 
         const reinvestorPreviousBalance = await ethers.provider.getBalance(reinvest.address)
         const subscriptionAmount = await tenX.getSubscriptionAmount(
-          months[1],
+          months[0],
           ethers.constants.AddressZero
         );
 
        await tenX.connect(tempWallet).subscribe(
         ethers.BigNumber.from(subscriptionAmount),
-        months[1],
+        months[0],
         mainReferalId,
         ethers.constants.AddressZero,
         { value: ethers.BigNumber.from(subscriptionAmount) })
 
-        let totalShareHolderAmount = 0
         let totalReferalAmount = 0
 
         const subscriberInfo = await tenX.users(tempWallet.address)
         fetchReferalId = Number(subscriberInfo.referredBy)
 
         for (const [index, value] of referalPercantage.entries()) {
-          console.log({index})
           if(fetchReferalId !== 0){
             const referalUser = await tenX.referralIdToUser(fetchReferalId)
             const referalUserNewBalance = await ethers.provider.getBalance(referalUser);
-            const amountToBeUpdated = (Number(subscriptionAmount)) * (value/10000)
-            totalReferalAmount += amountToBeUpdated
+            const amountToBeUpdated = subscriptionAmount.mul(value).div(10000)        
+            totalReferalAmount = amountToBeUpdated.add(totalReferalAmount)
+
             expect(Number(referalUserNewBalance))
-              .to.be.greaterThanOrEqual(Number(referalUserPreviousBalance[referalUser])+Number(amountToBeUpdated))
+              .to.be.greaterThanOrEqual(Number(referalUserPreviousBalance[referalUser].add(amountToBeUpdated)))
             const subscriberInfo = await tenX.users(referalUser)
             fetchReferalId = Number(subscriberInfo.referredBy)
           }
         }
 
+        let totalShareHolderAmount = 0
+        let remainingSubscriptionAmount = subscriptionAmount.sub(totalReferalAmount)        
+
         for (const [index, holder] of shareHolderWallets.entries()) {
           const shareHolderNewBalance = await ethers.provider.getBalance(holder);
-          const amountToBeUpdated = ((Number(subscriptionAmount))-totalReferalAmount) * shareHolderPercant[index]/10000
-          totalShareHolderAmount +=  amountToBeUpdated
-          expect(Number(shareHolderNewBalance))
-          .to.be.equal(Number(shareHoldersPreviousBalance[index])+Number(amountToBeUpdated))     
+          const amountToBeUpdated = remainingSubscriptionAmount.mul(shareHolderPercant[index]).div(10000)
+          totalShareHolderAmount = amountToBeUpdated.add(totalShareHolderAmount)
+          expect(shareHolderNewBalance)
+          .to.be.equal(shareHoldersPreviousBalance[index].add(amountToBeUpdated))     
         }
 
-        const reinvestAmountToUpdate = Number(subscriptionAmount) - (totalShareHolderAmount - totalReferalAmount)
+        const reinvestAmountToUpdate = subscriptionAmount.sub(totalShareHolderAmount.add(totalReferalAmount))
         const reinvestorNewBalance = await ethers.provider.getBalance(reinvest.address);
-        expect(Number(reinvestorNewBalance))
-          .to.be.equal(Number(reinvestorPreviousBalance)+Number(reinvestAmountToUpdate))
+        expect(reinvestorNewBalance)
+          .to.be.equal(reinvestorPreviousBalance.add(reinvestAmountToUpdate))
         });
     });
 
+    describe("Payment Splits on Subscriptions using BUSD", function () {
+      it("Should split the payments among the share holders and reinvestor correctly for no referals", async function () {
+        const { tenX,busd,user1,shareHolderWallets,reinvest } = await loadFixture(deployTenxFixture);
+        await tenX.addPaymentToken(busd.address,busdPriceFeed);
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          busd.address
+        );
+
+        let shareHoldersPreviousBalance = []
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderBalance = await busd.balanceOf(holder);
+          shareHoldersPreviousBalance.push(shareHolderBalance)
+        }
+
+      const reinvestorPreviousBalance = await busd.balanceOf(reinvest.address)
+      const decimals = await busd.decimals()
+
+      await busd.mint(user1.address,5000)
+      await busd.connect(user1).approve(tenX.address,1000 * Math.pow(10,decimals))
+
+      await tenX.connect(user1).subscribe(
+        ethers.BigNumber.from(subscriptionAmount),
+        months[0],
+        0,
+        busd.address)
+
+        let totalShareHolderAmount = 0
+
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderNewBalance = await busd.balanceOf(holder);
+          const amountToBeUpdated = subscriptionAmount.mul(shareHolderPercant[index]).div(10000)
+          totalShareHolderAmount =  amountToBeUpdated.add(totalShareHolderAmount)
+          expect(shareHolderNewBalance)
+          .to.be.equal(shareHoldersPreviousBalance[index].add(amountToBeUpdated))     
+        }
+        const reinvestAmountToUpdate = subscriptionAmount.sub(totalShareHolderAmount)
+        const reinvestorNewBalance = await busd.balanceOf(reinvest.address);
+        expect(reinvestorNewBalance)
+          .to.be.equal(reinvestorPreviousBalance.add(reinvestAmountToUpdate))
+      });
+
+      it("Should split the payments among the share holders, reinvestors and referals correctly", async function () {
+        const { tenX,
+                busd,
+                referalUsers,
+                tempWallet,
+                shareHolderWallets,
+                reinvest } = await loadFixture(deployTenxFixture);
+                
+        await tenX.addPaymentToken(ethers.constants.AddressZero,nativePriceFeed);
+        await tenX.addPaymentToken(busd.address,busdPriceFeed);
+
+        let referalUserPreviousBalance = {}
+        let mainReferalId = 0
+
+        for (const [index, user] of referalUsers.entries()) {
+          let referalId = 0
+          const subscriptionAmount = await tenX.getSubscriptionAmount(
+            months[0],
+            ethers.constants.AddressZero
+          );
+
+          if(index > 0){
+            const userInfo = await tenX.users(referalUsers[index-1].address)
+            referalId = Number(userInfo.referralId)
+          }
+
+          await tenX.connect(user).subscribe(
+            ethers.BigNumber.from(subscriptionAmount),
+            months[0],
+            referalId,
+            ethers.constants.AddressZero,
+            { value: ethers.BigNumber.from(subscriptionAmount) })
+            
+            const userBalance = await busd.balanceOf(user.address);
+            referalUserPreviousBalance = {...referalUserPreviousBalance,...{[user.address]:userBalance}}
+
+            if(index === referalUsers.length-1){
+              const userInfo = await tenX.users(user.address)
+              mainReferalId = Number(userInfo.referralId)
+            }
+        }
+
+        let shareHoldersPreviousBalance = []
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderBalance = await busd.balanceOf(holder);
+          shareHoldersPreviousBalance.push(shareHolderBalance)
+        }
+
+        const reinvestorPreviousBalance = await busd.balanceOf(reinvest.address)
+        const subscriptionAmount = await tenX.getSubscriptionAmount(
+          months[0],
+          busd.address
+        );
+
+      const decimals = await busd.decimals()
+
+      await busd.mint(tempWallet.address,5000)
+      await busd.connect(tempWallet).approve(tenX.address,1000 * Math.pow(10,decimals))
+
+      await tenX.connect(tempWallet).subscribe(
+        ethers.BigNumber.from(subscriptionAmount),
+        months[0],
+        mainReferalId,
+        busd.address)
+
+        let totalReferalAmount = 0
+
+        const subscriberInfo = await tenX.users(tempWallet.address)
+        fetchReferalId = Number(subscriberInfo.referredBy)
+
+        for (const [index, value] of referalPercantage.entries()) {
+          if(fetchReferalId !== 0){
+            const referalUser = await tenX.referralIdToUser(fetchReferalId)
+            const referalUserNewBalance = await busd.balanceOf(referalUser);
+            const amountToBeUpdated = subscriptionAmount.mul(value).div(10000)        
+            totalReferalAmount = amountToBeUpdated.add(totalReferalAmount)
+            expect(referalUserNewBalance)
+              .to.be.equal(referalUserPreviousBalance[referalUser].add(amountToBeUpdated))
+            const subscriberInfo = await tenX.users(referalUser)
+            fetchReferalId = Number(subscriberInfo.referredBy)
+          }
+        }
+
+        let totalShareHolderAmount = 0
+        let remainingSubscriptionAmount = subscriptionAmount.sub(totalReferalAmount)        
+
+        for (const [index, holder] of shareHolderWallets.entries()) {
+          const shareHolderNewBalance = await busd.balanceOf(holder);
+          const amountToBeUpdated = remainingSubscriptionAmount.mul(shareHolderPercant[index]).div(10000)
+          totalShareHolderAmount = amountToBeUpdated.add(totalShareHolderAmount)
+          expect(shareHolderNewBalance)
+          .to.be.equal(shareHoldersPreviousBalance[index].add(amountToBeUpdated))     
+        }
+
+        const reinvestAmountToUpdate = subscriptionAmount.sub(totalShareHolderAmount.add(totalReferalAmount))
+        const reinvestorNewBalance = await busd.balanceOf(reinvest.address);
+        expect(reinvestorNewBalance)
+          .to.be.equal(reinvestorPreviousBalance.add(reinvestAmountToUpdate))
+        });
+    });
   });

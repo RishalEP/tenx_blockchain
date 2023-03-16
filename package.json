@@ -12,7 +12,9 @@
     "@openzeppelin/contracts": "^4.8.0",
     "@openzeppelin/contracts-upgradeable": "^4.8.0",
     "@openzeppelin/hardhat-upgrades": "^1.22.0",
+    "@openzeppelin/test-helpers": "^0.5.16",
     "chai": "^4.3.7",
+    "chai-bn": "^0.3.1",
     "ethereum-waffle": "^3.4.4",
     "ethers": "^5.7.2",
     "web3": "^1.8.1"
