@@ -1,3 +1,26 @@
+const paymentTokens = {
+  80001: {
+      nativeToken : {
+        address:'0x0000000000000000000000000000000000000000',
+        priceFeed:'0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada'
+      },
+      customToken : {
+        //custom token deployed - need to change if you deploy new token
+        address:'0xb7628D153C0D2B843F2f9EF2Fb3EF118029E0121',
+        priceFeed:'0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
+      }
+    },
+  97:{
+    nativeToken : {
+      address:'0x0000000000000000000000000000000000000000',
+      priceFeed:'0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526'
+    },
+    customToken : {
+      address:'0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee',
+      priceFeed:'0x9331b55D9830EF609A2aBCfAc0FBCE050A52fdEa'
+    }
+  }
+}
 
 const reinvest = {
   mainWallet:'0x6346305D4D3c46611ba512ae69FA11DAcFCD79f5',
@@ -48,6 +71,7 @@ module.exports = {
   reinvestSubWallet : reinvest.subWallet,
   referalPercantage : [1000, 800, 600, 300],
   months : [1, 3, 6, 12],
-  pricing : [1, 2, 3, 4]
+  pricing : [1, 2, 3, 4],
+  paymentTokens
 }
 

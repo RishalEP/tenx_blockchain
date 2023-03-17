@@ -10,7 +10,9 @@ const {
     reinvestSubWallet,
     referalPercantage,
     months,
-    pricing
+    pricing,
+    nativeToken,
+    paymentTokens
 } = require('../helper/arguments')
 
 
@@ -31,6 +33,7 @@ async function main() {
         );
 
     await saveToConfig('TenX', 'ADDRESS', tenX.address)
+    await saveToConfig('TenX', 'CHAINID', hre.network.config.chainId)
     console.log(`TENX:- ${tenX.address} `);
 
     if(!chainCheck){
@@ -39,7 +42,28 @@ async function main() {
         await saveToConfig('BUSD', 'ABI', BUSDABI)
         const busd = await BUSD.deploy();
         await saveToConfig('BUSD', 'ADDRESS', busd.address)
+        await saveToConfig('BUSD', 'CHAINID', hre.network.config.chainId)
         console.log(`BUSD:- ${busd.address} `);
+    }
+
+    const tokensToAdd = paymentTokens[hre.network.config.chainId]
+    if(tokensToAdd !== undefined){
+        const addNativeToken = await tenX.addPaymentToken(
+            tokensToAdd.nativeToken.address,
+            tokensToAdd.nativeToken.priceFeed
+        )
+
+        console.log({addNativeToken})
+
+        const addCustomToken = await tenX.addPaymentToken(
+            tokensToAdd.customToken.address,
+            tokensToAdd.customToken.priceFeed
+        )
+
+        console.log({addCustomToken})
+    }
+    else{
+        console.log(`Payment Tokens and Pricefeeds not added in the list`);
     }
 }
 
