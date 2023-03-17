@@ -995,7 +995,7 @@
             "type": "function"
         }
     ],
-    "BUSD_ADDRESS": "0x8D68e8995130E45F668e7e58f2200bA5e47A2ff1",
+    "BUSD_ADDRESS": "0xb7628D153C0D2B843F2f9EF2Fb3EF118029E0121",
     "IERC20_ABI": [
         {
             "anonymous": false,
@@ -1180,5 +1180,7 @@
             "stateMutability": "nonpayable",
             "type": "function"
         }
-    ]
+    ],
+    "TenX_CHAINID": 80001,
+    "BUSD_CHAINID": 80001
 }

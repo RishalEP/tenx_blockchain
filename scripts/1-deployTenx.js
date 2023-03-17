@@ -36,34 +36,26 @@ async function main() {
     await saveToConfig('TenX', 'CHAINID', hre.network.config.chainId)
     console.log(`TENX:- ${tenX.address} `);
 
-    if(!chainCheck){
-        const BUSD = await ethers.getContractFactory("BUSD");
-        const BUSDABI = (await artifacts.readArtifact('BUSD')).abi
-        await saveToConfig('BUSD', 'ABI', BUSDABI)
-        const busd = await BUSD.deploy();
-        await saveToConfig('BUSD', 'ADDRESS', busd.address)
-        await saveToConfig('BUSD', 'CHAINID', hre.network.config.chainId)
-        console.log(`BUSD:- ${busd.address} `);
-    }
-
     const tokensToAdd = paymentTokens[hre.network.config.chainId]
+
     if(tokensToAdd !== undefined){
         const addNativeToken = await tenX.addPaymentToken(
             tokensToAdd.nativeToken.address,
             tokensToAdd.nativeToken.priceFeed
         )
-
-        console.log({addNativeToken})
+        
+        console.log(`TENX:- Native token added Hash - ${addNativeToken.hash} `);
 
         const addCustomToken = await tenX.addPaymentToken(
             tokensToAdd.customToken.address,
             tokensToAdd.customToken.priceFeed
         )
 
-        console.log({addCustomToken})
+        await saveToConfig('BUSD', 'ADDRESS', tokensToAdd.customToken.address)
+        console.log(`TENX:- Custom token added Hash - ${addCustomToken.hash} `);
     }
     else{
-        console.log(`Payment Tokens and Pricefeeds not added in the list`);
+        console.log(`Payment Tokens and Pricefeeds for the selected network is not added`);
     }
 }
 
