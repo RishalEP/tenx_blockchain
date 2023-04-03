@@ -69,7 +69,7 @@ module.exports = {
   ],
   reinvestMainWallet : reinvest.mainWallet,
   reinvestSubWallet : reinvest.subWallet,
-  referalPercantage : [1000, 800, 600, 300],
+  referalPercantage : [1000, 800, 600, 400],
   months : [1, 3, 6, 12],
   pricing : [1, 2, 3, 4],
   paymentTokens
