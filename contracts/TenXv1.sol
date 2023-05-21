@@ -1,446 +1,312 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /**
- * BNB testnet address :- 0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526
- * busd testnet address :- 0x9331b55D9830EF609A2aBCfAc0FBCE050A52fdEa
- * BNB mainnet address :- 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE
- * busd mainnet address :- 0xcBb98864Ef56E9042e7d2efef76141f15731B82f
+ * @author  Rishal EP
+ * @title   Tenx Subscription contract
+ * @dev     This contract is used for splitting 
+ *          users subscribtions to affiliates and shareholders
  */
 
-contract TenX is Ownable {
-    using SafeERC20 for IERC20;
-    uint256 public totalReferralIds;
-    uint256 public BNBFromFailedTransfers; // BNB left in the contract from failed transfers
+contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
-    uint256 public referralLevels;
-    address public reInvestmentWallet;
-    address[] public shareHolderWallet;
-    uint256[] public shareHolderPercentage; // percentage should whithout decimal EX:- 33.75 will like 3375
-    mapping(uint256 => uint256) public referralPercentage;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using CountersUpgradeable for CountersUpgradeable.Counter;
 
-    struct SubscriptionPlan {
+    /**
+     * @dev Struct defining the parameters of a subscribtion scheme.
+     * @param price is the dollar price for this subscribtion.
+     * @param plan is the subscribtion plan (duration) in seconds.
+     * @param active is a boolean indicating whether this scheme is currently active or not.
+     */
+    struct SubscribtionScheme {
         uint256 price;
-        uint256 duration;
-        bool exist;
+        uint256 lockingPeriod;
+        bool active;
     }
-    mapping(uint256 => SubscriptionPlan) public subscriptionPlans; // months -> plan details
 
+    /**
+     * @dev Struct representing data associated with a particular user.
+     * @param referralId is users unique id.
+     * @param plan is the subscribtion plan (duration) in seconds.
+     * @param active is a boolean indicating whether this scheme is currently active or not.
+     */
     struct User {
         uint256 referralId;
         uint256 referredBy;
         uint256 subscriptionValidity;
     }
-    mapping(address => User) public users; // user address -> User
-    mapping(uint256 => address) public referralIdToUser; // referralId -> user address
 
+    /**
+     * @dev Struct representing data associated with a payment token.
+     * @param priceFeed is price feed address of the token.
+     * @param active is a boolean indicating whether this scheme is currently active or not.
+     */
     struct PaymentToken {
-        address priceFeed; // Chainlink price feed
-        bool exist;
+        address priceFeed;
+        bool active;
     }
-    mapping(address => PaymentToken) public paymentTokens;
 
-    /* Events */
-    event TransferOfBNBFail(address indexed receiver, uint256 indexed amount);
-    event SetShareHolder(address indexed shareHolderWallet, uint128 index);
-    event SetShareHolderPercentage(
-        uint256 indexed shareHolderPercentage,
-        uint128 index
-    );
+     /**
+     * @dev Struct representing each shareholder details.
+     * @param name is name of share holder.
+     * @param holderAddress is address of share holder.
+     * @param sharePercentage is percantage share for share holder
+     * @param active is a boolean indicating whether this holder is currently active or not.
+     */
+    struct ShareHolder {
+        string name;
+        address holderAddress;
+        uint256 sharePercentage;
+        bool active;
+    }
 
-    event SetReferralPercentage(uint256 referralPercentage, uint128 index);
-    event SetReInvestmentWallet(address indexed reInvestmentWallet);
+    /**
+     * @dev Struct representing shareholder and affiliates detail in common.
+     * @param totalLevels is the total number of share holders/affiliates.
+     * @param totalShare is total percantage of share for all the shareholders/affiliates.
+     */
+    struct Shares {
+        uint256 totalLevels;
+        uint256 totalShare;
+    }
 
-    event CreateUser(
-        address indexed user,
-        uint256 indexed referralId,
-        uint256 indexed referredBy
-    );
+    /// Constant representing the manager role.
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
-    event Subscription(
-        uint256 amount,
-        uint120 period,
-        address indexed subscriber,
-        address paymentToken
-    );
-    event AddPaymentToken(address indexed paymentToken);
-    event RemovePaymentToken(address indexed paymentToken);
+    /// Variable to store failed transaction BNB.
+    uint256 internal BNBFromFailedTransfers_;
 
-    constructor(
-        address[] memory _shareHolderWallet,
-        uint256[] memory _shareHolderPercentage,
-        address _reinvestmentWallet,
-        uint256 _referralLevel,
-        uint256[] memory _referralPercentage,
-        uint256[] memory months,
-        uint256[] memory pricing
-    ) {
+    /// Counter to keep track of the total users.
+    CountersUpgradeable.Counter internal userID_;
+    
+    /// Variable to store re investment wallet.
+    address internal reInvestmentWallet_;
+
+    /// Mapping to store all the users created.
+    mapping(uint256 => User) internal users_;
+    
+    /// Mapping to payment all the payment tokens created.
+    mapping(address => PaymentToken) internal paymentTokens_;
+
+    /// Mapping to save all share holders details.
+    mapping(uint256 => ShareHolder) internal shareHolders_;
+
+    /// Mapping to store all the schemes created.
+    mapping(uint256 => SubscribtionScheme) internal subscribtionSchemes_;
+    
+    /// Mapping to store referal percentages for all levels.
+    mapping(uint256 => uint256) public referralPercentages_;
+
+    /// Variable store the referal level info in detail.
+    Shares internal referalShares_;
+
+    /// Variable store the shareHolder info in detail.
+    Shares internal holderShares_;
+
+    // Add Events Here
+
+
+    /**
+     * @dev modifier to check if msg.sender address is manager or admin.
+     */
+    modifier isManager() {
         require(
-            _shareHolderPercentage.length == _shareHolderWallet.length,
-            "TenX: share holder length mismatch"
+            hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
+                hasRole(MANAGER_ROLE, msg.sender),
+            "KyotoStake: Not Admin or Manager"
         );
+        _;
+    }
+
+    /**
+     * @dev Initializes the contract.
+     * This function is used to set initial values for certain variables/parameters when the contract is first deployed.
+     */
+    function initialize(
+        Shares memory _shareHolderDetail, 
+        Shares memory _referralDetail
+    ) external initializer {
+        __Pausable_init();
+        __AccessControl_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(MANAGER_ROLE, _msgSender());
+
+        _setShareHolderDetail(_shareHolderDetail);
+        _setReferalLevelDetail(_referralDetail);
+    }
+
+    /**
+     * @dev Pauses the contract, disabling interaction with it.
+     *
+     * Requirements:
+     * - Only the admin or manager can call this function.
+     */
+    function pause() external isManager {
+        _pause();
+    }
+
+    /**
+     * @dev Unpauses the contract, allowing interaction with it.
+     *
+     * Requirements:
+     * - Only the admin or manager can call this function.
+     */
+    function unpause() external isManager {
+        _unpause();
+    }
+
+
+    /**
+     * @dev Updates the Total Share holder Levels and Percentage.
+     * @param _names The Array of share holder names.   
+     * @param _userAddresses The Array of share holder Addresses.   
+     * @param _sharePercants The Array of share holder shares .   
+     */
+    function setShareHolders(
+        string[] memory _names, 
+        address[] memory _userAddresses, 
+        uint256[] memory _sharePercants
+    ) external isManager {
         require(
-            _referralLevel == _referralPercentage.length,
-            "TenX: referral length mismatch"
-        );
-        require(
-            months.length == pricing.length,
-            "TenX: pricing length mismatch"
+            _names.length ==
+            _userAddresses.length && 
+            _sharePercants.length == 
+            holderShares_.totalLevels &&
+            _sharePercants.length == 
+            _userAddresses.length,
+            "Tenx: Share Holder Level Mismsatch in Inputs"
         );
 
-        shareHolderWallet = _shareHolderWallet;
-        shareHolderPercentage = _shareHolderPercentage;
-        reInvestmentWallet = _reinvestmentWallet;
-        referralLevels = _referralLevel;
+        require(
+            !_isShareExceedsLimit(
+                holderShares_.totalShare,
+                _sharePercants
+                ),
+            "Tenx: Total Share Exceeds Limit"
+        );
 
-        for (uint256 i; i < referralLevels; i++) {
-            referralPercentage[i] = _referralPercentage[i];
+        for (uint256 i=0; i < holderShares_.totalLevels; i++) {
+            _setShareHolder(
+                i+1,
+                _names[i],
+                _userAddresses[i],
+                _sharePercants[i]
+            );        
         }
-
-        addpricing(months, pricing);
     }
 
-    function addpricing(uint256[] memory months, uint256[] memory pricing)
-        internal
-    {
-        for (uint256 i; i < pricing.length; i++) {
-            subscriptionPlans[months[i]] = SubscriptionPlan(
-                pricing[i],
-                months[i] * 30 days,
-                true
-            );
+    /**
+     * @dev set Referral Percentages for the affiliates.
+     * @param _sharePercant The Array of referal percentages.   
+     */
+
+    function setReferralPercentages(
+        uint256[] memory _sharePercant
+    ) external isManager {
+         require(
+            referalShares_.totalLevels ==
+            _sharePercant.length,
+            "Tenx: Input Length Mismatch"
+        );
+
+        require(
+            !_isShareExceedsLimit(
+                referalShares_.totalShare,
+                _sharePercant
+                ),
+            "Tenx: Total Share Exceeds Limit"
+        );
+
+        for (uint256 i=0; i < _sharePercant.length; i++) {
+            referralPercentages_[i+1] = _sharePercant[i];
         }
     }
 
-    function addPaymentToken(address paymentToken, address priceFeed)
-        external
-        onlyOwner
-    {
-        require(
-            !paymentTokens[paymentToken].exist,
-            "TenX: paymentToken already added"
-        );
-        require(priceFeed != address(0), "TenX: priceFeed address zero");
+    /**
+     * @dev Check if share exceeds the limit.
+     * @param _limit The Share Holders total limit.  
+     * @param _sharePercant The Share Holders share percentages.   
+     */
 
-        paymentTokens[paymentToken] = PaymentToken(priceFeed, true);
-        emit AddPaymentToken(paymentToken);
+    function _isShareExceedsLimit(
+        uint256 _limit,
+        uint256[] memory _sharePercant
+    ) internal pure returns (bool) {
+        uint256 accumulatedShare;
+        for (uint256 i = 0; i < _sharePercant.length; i++) {
+            accumulatedShare = accumulatedShare + _sharePercant[i];
+        }
+        return accumulatedShare > _limit;
     }
 
-    function removePaymentToken(address paymentToken) external onlyOwner {
-        require(
-            paymentTokens[paymentToken].exist,
-            "TenX: paymentToken not added"
-        );
-
-        delete paymentTokens[paymentToken];
-        emit RemovePaymentToken(paymentToken);
-    }
-
-    function changePriceFeed(address paymentToken, address priceFeed)
-        external
-        onlyOwner
-    {
-        require(
-            paymentTokens[paymentToken].exist,
-            "TenX: paymentToken not added"
-        );
-
-        require(priceFeed != address(0), "TenX: priceFeed address zero");
-        paymentTokens[paymentToken].priceFeed = priceFeed;
-    }
-
-    function addSubscriptionPlan(uint256 months, uint256 price)
-        external
-        onlyOwner
-    {
-        require(months > 0 && price > 0, "TenX: month or price zero");
-
-        subscriptionPlans[months] = SubscriptionPlan(
-            price,
-            months * 30 days,
+    
+    /**
+     * @dev Set a single share holder details.
+     * @param _id Id of the share holder. usually from 0 to levels.  
+     * @param _name The share holder name.   
+     * @param _userAddress Theshare holder Address.   
+     * @param _share The share holder share Percanetage .   
+     */
+    function _setShareHolder(
+        uint256 _id,
+        string memory _name,
+        address _userAddress,
+        uint256 _share
+    ) internal {
+        shareHolders_[_id] = ShareHolder(
+            _name,
+            _userAddress,
+            _share,
             true
         );
     }
 
-    function changeSubscriptionPricing(uint256 newPrice, uint256 months)
-        external
-        onlyOwner
-    {
+    /**
+     * @dev Updates the Total Share holder Levels and Percentage.
+     * @param _shareHolderDetail The Share Holders Details to be updated.   
+     */
+    function _setShareHolderDetail(Shares memory _shareHolderDetail) internal {
         require(
-            subscriptionPlans[months].exist,
-            "TenX: invalid subscription plan"
+            _shareHolderDetail.totalShare > 0 &&
+                _shareHolderDetail.totalShare < 10000,
+            "Tenx: Total Percentage should be betweeen 0 to 100"
         );
-        subscriptionPlans[months].price = newPrice;
-    }
 
-    function removeSubscriptionPlan(uint256 months) external onlyOwner {
         require(
-            subscriptionPlans[months].exist,
-            "TenX: invalid subscription plan"
-        );
-        delete subscriptionPlans[months];
-    }
-
-    function getUserReferralId() internal returns (uint256) {
-        return ++totalReferralIds;
-    }
-
-    function createUser(address userAddress, uint256 referredBy)
-        internal
-        returns (uint256 userReferralId)
-    {
-        userReferralId = getUserReferralId();
-        users[userAddress] = User(userReferralId, referredBy, 0);
-        referralIdToUser[userReferralId] = userAddress;
-        emit CreateUser(userAddress, userReferralId, referredBy);
-    }
-
-    function subscribe(
-        uint256 amount,
-        uint120 months,
-        uint256 referredBy,
-        address paymentToken
-    ) external payable {
-        require(
-            subscriptionPlans[months].exist,
-            "TenX: subscription plan doesn't exist"
-        );
-        require(
-            true || getSubscriptionAmount(months, paymentToken) <= amount,
-            "TenX: amount paid less. increase slippage"
-        );
-        if (referredBy != 0)
-            require(
-                referralIdToUser[referredBy] != address(0),
-                "TenX: invalid referredBy"
-            );
-
-        if (paymentToken != address(0)) {
-            require(
-                IERC20(paymentToken).allowance(msg.sender, address(this)) >=
-                    amount,
-                "TenX: insufficient allowance"
-            );
-            require(msg.value == 0, "TenX: msg.value not zero");
-        } else require(amount == msg.value, "TenX: msg.value not equal amount");
-
-        uint256 amountAfterReferrals = amount;
-
-        User memory user = users[msg.sender];
-        if (user.referralId == 0) {
-            createUser(msg.sender, referredBy);
-            amountAfterReferrals -= processReferrals(
-                referredBy,
-                amount,
-                paymentToken
-            );
-        }
-
-        processPayment(amountAfterReferrals, paymentToken);
-        uint256 subscriptionValidity = block.timestamp +
-            subscriptionPlans[months].duration;
-        users[msg.sender].subscriptionValidity = subscriptionValidity;
-
-        emit Subscription(
-            amount,
-            months,
-            msg.sender,
-            paymentToken
-        );
-    }
-
-    function calculatePercentage(uint256 amount, uint256 percentage)
-        internal
-        pure
-        returns (uint256 shareAmount)
-    {
-        shareAmount = (amount * percentage) / 10_000;
-    }
-
-    function transferTokens(
-        address from,
-        address to,
-        uint256 amount,
-        address paymentToken
-    ) internal {
-        if (amount > 0 && to != address(0)) {
-            if (paymentToken != address(0)) {
-                if (from == address(this))
-                    IERC20(paymentToken).safeTransfer(to, amount);
-                else IERC20(paymentToken).safeTransferFrom(from, to, amount);
-            } else {
-                (bool success, ) = payable(to).call{value: amount}("");
-                if (!success) {
-                    BNBFromFailedTransfers += amount;
-                    emit TransferOfBNBFail(to, amount);
-                }
-            }
-        }
-    }
-
-    function processReferrals(
-        uint256 referredBy,
-        uint256 amount,
-        address paymentToken
-    ) internal returns (uint256 totalReferralRewards) {
-        if (referredBy != 0) {
-            (address[] memory referralList, uint256 count) = getReferralList(
-                referredBy
-            );
-            for (uint256 i; i < count; i++) {
-                uint256 referralReward = calculatePercentage(
-                    amount,
-                    referralPercentage[i]
-                );
-                totalReferralRewards += referralReward;
-                transferTokens(
-                    msg.sender,
-                    referralList[i],
-                    referralReward,
-                    paymentToken
-                );
-            }
-        }
-    }
-
-    function getReferralList(uint256 referredBy)
-        internal
-        view
-        returns (address[] memory, uint256)
-    {
-        uint256 currentReferralId = referredBy;
-        address[] memory referralList = new address[](referralLevels);
-        uint256 count;
-
-        for (uint256 i; i < referralLevels; i++) {
-            referralList[i] = referralIdToUser[currentReferralId];
-            currentReferralId = users[referralList[i]].referredBy;
-            count++;
-            if (currentReferralId == 0) break;
-        }
-        return (referralList, count);
-    }
-
-    function processPayment(uint256 amount, address paymentToken) internal {
-        // Share Holder Payments
-        uint256 totalShareHolderAmount;
-        for (uint256 i; i < shareHolderPercentage.length; i++) {
-            uint256 shareHolderAmount = calculatePercentage(
-                amount,
-                shareHolderPercentage[i]
-            );
-            totalShareHolderAmount += shareHolderAmount;
-            transferTokens(
-                msg.sender,
-                shareHolderWallet[i],
-                shareHolderAmount,
-                paymentToken
-            );
-        }
-        // Re Investment Wallet Payments
-        transferTokens(
-            msg.sender,
-            reInvestmentWallet,
-            amount - totalShareHolderAmount,
-            paymentToken
-        );
-    }
-
-    function getSubscriptionAmount(uint256 months, address paymentToken)
-        public
-        view
-        returns (uint256 subscriptionAmount)
-    {
-        require(
-            subscriptionPlans[months].exist,
-            "TenX: invalid subscription plan"
-        );
-        require(
-            paymentTokens[paymentToken].exist,
-            "TenX: paymentToken not added"
+            _shareHolderDetail.totalLevels > 0,
+            "Tenx: Total Levels should be non zero"
         );
 
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            paymentTokens[paymentToken].priceFeed
-        );
-
-        (, int256 price, , , ) = priceFeed.latestRoundData();
-        uint256 decimals = uint256(priceFeed.decimals());
-
-        subscriptionAmount = paymentToken != address(0)
-            ? ((subscriptionPlans[months].price *
-                10**(decimals + IERC20Metadata(paymentToken).decimals())) /
-                uint256(price))
-            : ((subscriptionPlans[months].price * 10**(decimals + 18)) /
-                uint256(price));
-    }
-
-    function changeShareHolder(address _shareHolderWallet, uint128 index)
-        external
-        onlyOwner
-    {
-        require(index < shareHolderWallet.length, "invalid index");
-        require(
-            _shareHolderWallet != address(0),
-            "TenX: _shareHolderWallet wallet zero"
-        );
-        shareHolderWallet[index] = _shareHolderWallet;
-        emit SetShareHolder(_shareHolderWallet, index);
+       holderShares_ = _shareHolderDetail;
     }
 
     /**
-     * @param _shareHolderPercentage always be multiplied by 100
-     * For example 9 % should be added as 900 which is 9 * 100
+     * @dev Updates the Total referral Levels and Percentage.
+     * @param _referralDetail The Share Holders Details to be updated.   
      */
-    function changeShareHolderPercentage(
-        uint256 _shareHolderPercentage,
-        uint128 index
-    ) external onlyOwner {
-        require(index < shareHolderPercentage.length, "TenX: invalid index");
-        shareHolderPercentage[index] = _shareHolderPercentage;
-        emit SetShareHolderPercentage(_shareHolderPercentage, index);
-    }
-
-    function changeReInvestmentWallet(address _reInvestmentWallet)
-        external
-        onlyOwner
-    {
+    function _setReferalLevelDetail(Shares memory _referralDetail) internal {
         require(
-            _reInvestmentWallet != address(0),
-            "TenX: _reInvestmentWallet zero"
+            _referralDetail.totalShare > 0 &&
+                _referralDetail.totalShare < 10000,
+            "Tenx: Total Percentage should be betweeen 0 to 100"
         );
-        reInvestmentWallet = _reInvestmentWallet;
-        emit SetReInvestmentWallet(_reInvestmentWallet);
+
+        require(
+            _referralDetail.totalLevels > 0,
+            "Tenx: Total Levels should be non zero"
+        );
+
+       referalShares_ = _referralDetail;
     }
 
-    /**
-     * @param _referralPercentage always be multiplied by 100
-     * For example 9 % should be added as 900 which is 9 * 100
-     */
-
-    function changeReferralPercentage(
-        uint256 _referralPercentage,
-        uint128 index
-    ) external onlyOwner {
-        require(index < referralLevels, "TenX: invalid index");
-        referralPercentage[index] = _referralPercentage;
-        emit SetReferralPercentage(_referralPercentage, index);
-    }
-
-    /**
-     * @notice This method is to collect any BNB left from failed transfers.
-     * @dev This method can only be called by the contract owner
-     */
-    function collectBNBFromFailedTransfers() external onlyOwner {
-        uint256 bnbToSend = BNBFromFailedTransfers;
-        BNBFromFailedTransfers = 0;
-        (bool success, ) = payable(owner()).call{value: bnbToSend}("");
-        require(success, "TenX: BNB transfer failed");
-    }
 }
