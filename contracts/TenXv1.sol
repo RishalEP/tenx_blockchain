@@ -22,9 +22,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
     /**
-     * @dev Struct defining the parameters of a subscribtion scheme.
-     * @param price is the dollar price for this subscribtion.
-     * @param lockingPeriod is the subscribtion plan (duration) in seconds.
+     * @dev Struct defining the parameters of a Subscription scheme.
+     * @param price is the dollar price for this Subscription.
+     * @param lockingPeriod is the Subscription plan (duration) in seconds.
      * @param active is a boolean indicating whether this scheme is currently active or not.
      */
     struct SubscribtionScheme {
@@ -36,7 +36,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /**
      * @dev Struct representing data associated with a particular user.
      * @param referralId is users unique id.
-     * @param plan is the subscribtion plan (duration) in seconds.
+     * @param plan is the Subscription plan (duration) in seconds.
      * @param active is a boolean indicating whether this scheme is currently active or not.
      */
     struct User {
@@ -92,7 +92,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     address internal reInvestmentWallet_;
 
     /// Mapping to store all the users created.
-    mapping(uint256 => User) internal users_;
+    mapping(address => User) internal users_;
+
+    /// Mapping to store the users referalId to address
+    mapping(uint256 => address) public usersReferalId_; 
     
     /// Mapping to payment all the payment tokens created.
     mapping(address => PaymentToken) internal paymentTokens_;
@@ -104,7 +107,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     mapping(uint256 => SubscribtionScheme) internal subscribtionSchemes_;
     
     /// Mapping to store referal percentages for all levels.
-    mapping(uint256 => uint256) public referralPercentages_;
+    mapping(uint256 => uint256) public referalPercentages_;
 
     /// Variable store the referal level info in detail.
     Shares internal referalShares_;
@@ -199,7 +202,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         for (uint256 i=0; i < holderShares_.totalLevels; i++) {
             _setShareHolder(
-                i+1,
+                i,
                 _names[i],
                 _userAddresses[i],
                 _sharePercants[i]
@@ -230,7 +233,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
 
         for (uint256 i=0; i < _sharePercant.length; i++) {
-            referralPercentages_[i+1] = _sharePercant[i];
+            referalPercentages_[i+1] = _sharePercant[i];
         }
     }
 
@@ -253,91 +256,321 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     /**
      * @dev To add the payment token.
-     * @param paymentToken The Payment token.  
-     * @param priceFeed The Price feed addresss for the payment token.   
+     * @param _paymentToken The Payment token.  
+     * @param _priceFeed The Price feed addresss for the payment token.   
      */
 
-    function addPaymentToken(address paymentToken, address priceFeed) 
+    function addPaymentToken(address _paymentToken, address _priceFeed) 
         external isManager 
     {
         require(
-            paymentTokens_[paymentToken].priceFeed == address(0),
+            paymentTokens_[_paymentToken].priceFeed == address(0),
             "TenX: paymentToken already added"
         );
-        require(priceFeed != address(0), "TenX: priceFeed address could not be zero");
-        paymentTokens_[paymentToken] = PaymentToken(priceFeed, true);
+        require(_priceFeed != address(0), "TenX: priceFeed address could not be zero");
+        paymentTokens_[_paymentToken] = PaymentToken(_priceFeed, true);
     }
 
-    function disablePaymentToken(address paymentToken) external isManager {
+    function disablePaymentToken(address _paymentToken) external isManager {
         require(
-            paymentTokens_[paymentToken].priceFeed != address(0) &&
-            paymentTokens_[paymentToken].active,
+            paymentTokens_[_paymentToken].priceFeed != address(0) &&
+            paymentTokens_[_paymentToken].active,
             "TenX: PaymentToken not added or already disabled"
         );
 
-        paymentTokens_[paymentToken].active = false;
+        paymentTokens_[_paymentToken].active = false;
     }
 
-    function enablePaymentToken(address paymentToken) external isManager {
+    function enablePaymentToken(address _paymentToken) external isManager {
         require(
-            paymentTokens_[paymentToken].priceFeed != address(0) &&
-            !paymentTokens_[paymentToken].active,
+            paymentTokens_[_paymentToken].priceFeed != address(0) &&
+            !paymentTokens_[_paymentToken].active,
             "TenX: PaymentToken not added or already active"
         );
 
-        paymentTokens_[paymentToken].active = true;
+        paymentTokens_[_paymentToken].active = true;
     }
 
-    function changePriceFeed(address paymentToken, address priceFeed)
+    function changePriceFeed(address _paymentToken, address _priceFeed)
         external
         isManager
     {
        require(
-            paymentTokens_[paymentToken].priceFeed != address(0) &&
-            paymentTokens_[paymentToken].active,
+            paymentTokens_[_paymentToken].priceFeed != address(0) &&
+            paymentTokens_[_paymentToken].active,
             "TenX: PaymentToken not added or disabled"
         );
 
-        require(priceFeed != address(0), "TenX: priceFeed address zero");
-        paymentTokens_[paymentToken].priceFeed = priceFeed;
+        require(_priceFeed != address(0), "TenX: priceFeed address zero");
+        paymentTokens_[_paymentToken].priceFeed = _priceFeed;
     }
 
-    function addSubscriptionPlan(uint256 months, uint256 price)
+    function addSubscriptionPlan(uint256 _months, uint256 _price)
         external
         isManager
     {
-        require(months > 0 && price > 0, "TenX: month or price zero");
+        require(_months > 0 && _price > 0, "TenX: month or price zero");
         require(
-            !subscribtionSchemes_[months].active &&
-            subscribtionSchemes_[months].lockingPeriod == 0,
+            !subscribtionSchemes_[_months].active &&
+            subscribtionSchemes_[_months].lockingPeriod == 0,
             "TenX: Plan Already Exists"
         );
 
-        subscribtionSchemes_[months] = SubscribtionScheme(
-            price,
-            months * 30 days,
+        subscribtionSchemes_[_months] = SubscribtionScheme(
+            _price,
+            _months * 30 days,
             true
         );
     }
 
-    function changeSubscriptionPricing(uint256 months, uint256 newPrice)
+    function changeSubscriptionPricing(uint256 _months, uint256 _newPrice)
         external
         isManager
     {
-        require(months > 0 && newPrice > 0, "TenX: month or price zero");
+        require(_months > 0 && _newPrice > 0, "TenX: month or price zero");
         require(
-            subscribtionSchemes_[months].active &&
-            subscribtionSchemes_[months].lockingPeriod != 0,
+            subscribtionSchemes_[_months].active &&
+            subscribtionSchemes_[_months].lockingPeriod != 0,
             "TenX: Plan Does not Exists or Disabled"
         );
         require(
-            newPrice !=
-            subscribtionSchemes_[months].price,
+            _newPrice !=
+            subscribtionSchemes_[_months].price,
             "TenX: Try a different price"
         );
 
-        subscribtionSchemes_[months].price = newPrice;
+        subscribtionSchemes_[_months].price = _newPrice;
     }
+    
+    function disableSubscribtionPlan(uint256 _months)
+        external
+        isManager
+    {
+        require(
+            subscribtionSchemes_[_months].active &&
+            subscribtionSchemes_[_months].lockingPeriod != 0,
+            "TenX: Plan Does not Exists or Already Disabled"
+        );
+        subscribtionSchemes_[_months].active = false;
+    }
+
+    function enableSubscribtionPlan(uint256 _months)
+        external
+        isManager
+    {
+        require(
+            subscribtionSchemes_[_months].active,
+            "TenX: Plan Already Active"
+        );
+        subscribtionSchemes_[_months].active = true;
+    }
+
+
+    function subscribe(
+        uint256 _amount,
+        uint256 _months,
+        uint256 _referredBy,
+        address _paymentToken,
+        uint256 _discountPercant
+    ) external payable {
+        require(
+            subscribtionSchemes_[_months].active,
+            "TenX: Subscription plan not active"
+        );
+        require(
+            _getSubscriptionAmount(
+                _months, _paymentToken, _discountPercant) <= _amount,
+            "TenX: amount paid less. increase slippage"
+        );
+        if (_referredBy != 0){
+            require(
+                _referredBy <= userID_.current(),
+                "TenX: Invalid referredBy"
+            );
+        }
+        if (_paymentToken != address(0)) {
+            require(
+                IERC20Upgradeable(_paymentToken).allowance(msg.sender, address(this)) >=
+                    _amount,
+                "TenX: Insufficient Token Allowance"
+            );
+            require(msg.value == 0, "TenX: Not Required to transfer BNB");
+        } else require(_amount == msg.value, "TenX: Mismatch in Amount send ");
+
+        uint256 amountAfterReferals = _amount;
+        User memory user = users_[msg.sender];
+
+        if (user.referralId == 0) {
+            _createUser(msg.sender, _referredBy);
+            amountAfterReferals -= _processReferrals(
+                _referredBy,
+                _amount,
+                _paymentToken
+            );
+        }
+
+        _processPayment(amountAfterReferals, _paymentToken);
+
+        uint256 subscriptionValidity = 
+            users_[msg.sender].subscriptionValidity > block.timestamp ?
+            users_[msg.sender].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod :
+            block.timestamp + subscribtionSchemes_[_months].lockingPeriod;
+        
+        users_[msg.sender].subscriptionValidity = subscriptionValidity;
+    }
+
+    function _processPayment(uint256 _amount, address _paymentToken) 
+        internal 
+    {
+        // Share Holder Payments
+        uint256 totalShareHolderAmount;
+        for (uint256 i; i < holderShares_.totalLevels; i++) {
+            uint256 shareHolderAmount = _calculatePercentage(
+                _amount,
+                shareHolders_[i].sharePercentage
+            );
+            totalShareHolderAmount += shareHolderAmount;
+            _transferTokens(
+                msg.sender,
+                shareHolders_[i].holderAddress,
+                shareHolderAmount,
+                _paymentToken
+            );
+        }
+        // Re Investment Wallet Payments
+        _transferTokens(
+            msg.sender,
+            reInvestmentWallet_,
+            _amount - totalShareHolderAmount,
+            _paymentToken
+        );
+    }
+
+    function _createUser(address _userAddress, uint256 _referredBy)
+        internal
+        returns (uint256 userReferralId)
+    {
+        userID_.increment();
+        userReferralId = userID_.current();
+        users_[_userAddress] = User(userReferralId, _referredBy, 0);
+        // referralIdToUser[userReferralId] = userAddress;
+    }
+
+    function _processReferrals(
+        uint256 _referredBy,
+        uint256 _amount,
+        address _paymentToken
+    ) internal returns (uint256 totalReferralRewards) {
+        if (_referredBy != 0) {
+            (address[] memory referralList, uint256 count) = _getReferralList(
+                _referredBy
+            );
+            for (uint256 i; i < count; i++) {
+                uint256 referralReward = _calculatePercentage(
+                    _amount,
+                    referalPercentages_[i]
+                );
+                totalReferralRewards += referralReward;
+
+                address to = 
+                    users_[referralList[i]].subscriptionValidity > block.timestamp ?
+                    referralList[i] :
+                    reInvestmentWallet_;
+
+                _transferTokens(
+                    msg.sender,
+                    referralList[i],
+                    referralReward,
+                    _paymentToken
+                );
+            }
+        }
+    }
+
+    function _transferTokens(
+        address _from,
+        address _to,
+        uint256 _amount,
+        address _paymentToken
+    ) internal {
+        if (_amount > 0 && _to != address(0)) {
+            if (_paymentToken != address(0)) {
+                if (_from == address(this))
+                    IERC20Upgradeable(_paymentToken).safeTransfer(_to, _amount);
+                else IERC20Upgradeable(_paymentToken).safeTransferFrom(_from, _to, _amount);
+            } else {
+                (bool success, ) = payable(_to).call{value: _amount}("");
+                if (!success) {
+                    BNBFromFailedTransfers_ += _amount;
+                    // emit TransferOfBNBFail(to, amount);
+                }
+            }
+        }
+    }
+
+    function _calculatePercentage(uint256 _amount, uint256 _percentage)
+        internal
+        pure
+        returns (uint256 shareAmount)
+    {
+        shareAmount = (_amount * _percentage) / 10000;
+    }
+
+
+    function _getReferralList(uint256 _referredBy)
+        internal
+        view
+        returns (address[] memory, uint256)
+    {
+        uint256 currentReferralId = _referredBy;
+        address[] memory referralList = new address[](referalShares_.totalLevels);
+        uint256 count;
+
+        for (uint256 i; i < referalShares_.totalLevels; i++) {
+            referralList[i] = usersReferalId_[currentReferralId];
+            currentReferralId = users_[referralList[i]].referredBy;
+            count++;
+            if (currentReferralId == 0) break;
+        }
+        return (referralList, count);
+    }
+
+
+    function _getSubscriptionAmount(
+        uint256 _months, 
+        address _paymentToken, 
+        uint256 _discountPercant
+    )
+        internal
+        view
+        returns (uint256 subscriptionAmount)
+    {
+        require(
+            subscribtionSchemes_[_months].active,
+            "TenX: Subscrription Plan Not Active"
+        );
+        require(
+            paymentTokens_[_paymentToken].active,
+            "TenX: Payment Token Not Active"
+        );
+
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            paymentTokens_[_paymentToken].priceFeed
+        );
+
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+        uint256 decimals = uint256(priceFeed.decimals());
+
+        uint256 totalAmount = _paymentToken != address(0)
+            ? ((subscribtionSchemes_[_months].price *
+                10**(decimals + IERC20MetadataUpgradeable(_paymentToken).decimals())) /
+                uint256(price))
+            : ((subscribtionSchemes_[_months].price * 10**(decimals + 18)) /
+                uint256(price));
+
+        subscriptionAmount = (totalAmount * _discountPercant) / 10000;
+    }
+
 
 
 
