@@ -271,6 +271,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         paymentTokens_[_paymentToken] = PaymentToken(_priceFeed, true);
     }
 
+    /**
+     * @dev To disable the payment token.
+     * @param _paymentToken The Payment token address.  
+     */
+
     function disablePaymentToken(address _paymentToken) external isManager {
         require(
             paymentTokens_[_paymentToken].priceFeed != address(0) &&
@@ -281,6 +286,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         paymentTokens_[_paymentToken].active = false;
     }
 
+    /**
+     * @dev To enable the payment token.
+     * @param _paymentToken The Payment token address.  
+     */
     function enablePaymentToken(address _paymentToken) external isManager {
         require(
             paymentTokens_[_paymentToken].priceFeed != address(0) &&
@@ -291,6 +300,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         paymentTokens_[_paymentToken].active = true;
     }
 
+    /**
+     * @dev To change the price feed of payment token.
+     * @param _paymentToken The Payment token address.  
+     */
     function changePriceFeed(address _paymentToken, address _priceFeed)
         external
         isManager
@@ -304,6 +317,13 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         require(_priceFeed != address(0), "TenX: priceFeed address zero");
         paymentTokens_[_paymentToken].priceFeed = _priceFeed;
     }
+
+
+    /**
+     * @dev To add a new subscription plan.
+     * @param _months The Number of months for the plan.  
+     * @param _price The price of the plan.  
+     */
 
     function addSubscriptionPlan(uint256 _months, uint256 _price)
         external
@@ -323,6 +343,12 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
     }
 
+    /**
+     * @dev To change an subscription plans price.
+     * @param _months The Number of months for the plan.  
+     * @param _newPrice The price of the plan.  
+     */
+
     function changeSubscriptionPricing(uint256 _months, uint256 _newPrice)
         external
         isManager
@@ -341,6 +367,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         subscribtionSchemes_[_months].price = _newPrice;
     }
+
+    /**
+     * @dev To disable a subscripion plan.
+     * @param _months The plans duration in months.  
+     */
     
     function disableSubscribtionPlan(uint256 _months)
         external
@@ -354,6 +385,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         subscribtionSchemes_[_months].active = false;
     }
 
+    /**
+     * @dev To enable a subscripion plan.
+     * @param _months The plans duration in months.  
+     */
     function enableSubscribtionPlan(uint256 _months)
         external
         isManager
@@ -365,7 +400,15 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         subscribtionSchemes_[_months].active = true;
     }
 
+    /**
+     * @dev To subscribe a plan for the user.
+     * @param _amount The amount send to subscribe.  
+     * @param _months The plans duration in months.  
+     * @param _referredBy The Id of the user who referes.  
+     * @param _paymentToken payment token address.  
+     * @param _discountPercant the discount percentage.  
 
+     */
     function subscribe(
         uint256 _amount,
         uint256 _months,
@@ -479,7 +522,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
                 _transferTokens(
                     msg.sender,
-                    referralList[i],
+                    to,
                     referralReward,
                     _paymentToken
                 );
@@ -568,7 +611,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             : ((subscribtionSchemes_[_months].price * 10**(decimals + 18)) /
                 uint256(price));
 
-        subscriptionAmount = (totalAmount * _discountPercant) / 10000;
+        subscriptionAmount = 
+            _discountPercant > 0 ?
+            (totalAmount * _discountPercant) / 10000 :
+            totalAmount;
     }
 
 
