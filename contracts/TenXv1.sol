@@ -462,6 +462,51 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         users_[msg.sender].subscriptionValidity = subscriptionValidity;
     }
 
+    /**
+     * @dev To subscribe a plan for the user, initiated by manager.
+     * @param _userAddress The users address to subscribe the plan.  
+     * @param _months The plans duration in months.  
+     * @param _referredBy The Id of the user who referes. 
+
+     */
+    
+    function addSubscriptionForUser(
+        address _userAddress, 
+        uint256 _months, 
+        uint256 _referredBy
+    ) external isManager {
+        require(
+            subscribtionSchemes_[_months].active,
+            "TenX: Subscription plan not active"
+        );
+        
+        if (_referredBy != 0){
+            require(
+                _referredBy <= userID_.current(),
+                "TenX: Invalid referredBy"
+            );
+        }
+
+        User memory user = users_[_userAddress];
+
+        if (user.referralId == 0) {
+            _createUser(_userAddress, _referredBy);
+        }
+
+        uint256 subscriptionValidity = 
+            users_[msg.sender].subscriptionValidity > block.timestamp ?
+            users_[msg.sender].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod :
+            block.timestamp + subscribtionSchemes_[_months].lockingPeriod;
+        
+        users_[msg.sender].subscriptionValidity = subscriptionValidity;
+    }
+
+    /**
+     * @dev To process the referal paymentss.
+     * @param _amount The total amount received.  
+     * @param _paymentToken Payment token received.  
+     */
+
     function _processPayment(uint256 _amount, address _paymentToken) 
         internal 
     {
@@ -489,6 +534,12 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
     }
 
+    /**
+     * @dev To create a new user.
+     * @param _userAddress The total amount received.  
+     * @param _referredBy Id of the user who referred.  
+     */
+
     function _createUser(address _userAddress, uint256 _referredBy)
         internal
         returns (uint256 userReferralId)
@@ -498,6 +549,13 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         users_[_userAddress] = User(userReferralId, _referredBy, 0);
         // referralIdToUser[userReferralId] = userAddress;
     }
+
+    /**
+     * @dev To process the referal payouts.
+     * @param _referredBy Id of the user who referred.  
+     * @param _amount The total amount received.  
+     * @param _paymentToken The Payment token fro payment received.  
+     */
 
     function _processReferrals(
         uint256 _referredBy,
@@ -530,6 +588,13 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         }
     }
 
+    /**
+     * @dev To transfer the tokens.
+     * @param _from address of transaction initiated.  
+     * @param _to the address to receive payment tokens.  
+     * @param _amount The total amount received.  
+     * @param _paymentToken The Payment token fro payment received.  
+     */
     function _transferTokens(
         address _from,
         address _to,
@@ -551,6 +616,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         }
     }
 
+    /**
+     * @dev To calculate the percentages.
+     * @param _amount The total amount received.  
+     * @param _percentage The percentage to calculate with the amount.  
+     */
     function _calculatePercentage(uint256 _amount, uint256 _percentage)
         internal
         pure
@@ -559,6 +629,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         shareAmount = (_amount * _percentage) / 10000;
     }
 
+
+    /**
+     * @dev To fetch the referal list of a user.
+     * @param _referredBy The id of user who refferd .  
+     */
 
     function _getReferralList(uint256 _referredBy)
         internal
@@ -578,6 +653,12 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         return (referralList, count);
     }
 
+    /**
+     * @dev To fetch the subscribtion amount for a plan.
+     * @param _months The months for the plan .  
+     * @param _paymentToken The token used for payments .  
+     * @param _discountPercant percentage of discount to apply .  
+     */
 
     function _getSubscriptionAmount(
         uint256 _months, 
