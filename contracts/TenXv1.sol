@@ -24,7 +24,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /**
      * @dev Struct defining the parameters of a subscribtion scheme.
      * @param price is the dollar price for this subscribtion.
-     * @param plan is the subscribtion plan (duration) in seconds.
+     * @param lockingPeriod is the subscribtion plan (duration) in seconds.
      * @param active is a boolean indicating whether this scheme is currently active or not.
      */
     struct SubscribtionScheme {
@@ -133,7 +133,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      */
     function initialize(
         Shares memory _shareHolderDetail, 
-        Shares memory _referralDetail
+        Shares memory _referralDetail,
+        address _reinvestmentWallet
     ) external initializer {
         __Pausable_init();
         __AccessControl_init();
@@ -143,6 +144,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         _setShareHolderDetail(_shareHolderDetail);
         _setReferalLevelDetail(_referralDetail);
+        _setReinvestmentWallet(_reinvestmentWallet);
     }
 
     /**
@@ -232,6 +234,113 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         }
     }
 
+
+    /**
+     * @dev Updates Reinvestment wallet address.
+     * @param _reInvestmentWallet The Reinvestmentwallet Address.   
+     */
+
+    function updateReinvestmentWallet(
+        address _reInvestmentWallet
+    ) external isManager {
+         require(
+            _reInvestmentWallet != address(this) &&
+            _reInvestmentWallet != address(0),
+            "Tenx: Address Should not be this contract"
+        );
+        _setReinvestmentWallet(_reInvestmentWallet);
+    }
+
+    /**
+     * @dev To add the payment token.
+     * @param paymentToken The Payment token.  
+     * @param priceFeed The Price feed addresss for the payment token.   
+     */
+
+    function addPaymentToken(address paymentToken, address priceFeed) 
+        external isManager 
+    {
+        require(
+            paymentTokens_[paymentToken].priceFeed == address(0),
+            "TenX: paymentToken already added"
+        );
+        require(priceFeed != address(0), "TenX: priceFeed address could not be zero");
+        paymentTokens_[paymentToken] = PaymentToken(priceFeed, true);
+    }
+
+    function disablePaymentToken(address paymentToken) external isManager {
+        require(
+            paymentTokens_[paymentToken].priceFeed != address(0) &&
+            paymentTokens_[paymentToken].active,
+            "TenX: PaymentToken not added or already disabled"
+        );
+
+        paymentTokens_[paymentToken].active = false;
+    }
+
+    function enablePaymentToken(address paymentToken) external isManager {
+        require(
+            paymentTokens_[paymentToken].priceFeed != address(0) &&
+            !paymentTokens_[paymentToken].active,
+            "TenX: PaymentToken not added or already active"
+        );
+
+        paymentTokens_[paymentToken].active = true;
+    }
+
+    function changePriceFeed(address paymentToken, address priceFeed)
+        external
+        isManager
+    {
+       require(
+            paymentTokens_[paymentToken].priceFeed != address(0) &&
+            paymentTokens_[paymentToken].active,
+            "TenX: PaymentToken not added or disabled"
+        );
+
+        require(priceFeed != address(0), "TenX: priceFeed address zero");
+        paymentTokens_[paymentToken].priceFeed = priceFeed;
+    }
+
+    function addSubscriptionPlan(uint256 months, uint256 price)
+        external
+        isManager
+    {
+        require(months > 0 && price > 0, "TenX: month or price zero");
+        require(
+            !subscribtionSchemes_[months].active &&
+            subscribtionSchemes_[months].lockingPeriod == 0,
+            "TenX: Plan Already Exists"
+        );
+
+        subscribtionSchemes_[months] = SubscribtionScheme(
+            price,
+            months * 30 days,
+            true
+        );
+    }
+
+    function changeSubscriptionPricing(uint256 months, uint256 newPrice)
+        external
+        isManager
+    {
+        require(months > 0 && newPrice > 0, "TenX: month or price zero");
+        require(
+            subscribtionSchemes_[months].active &&
+            subscribtionSchemes_[months].lockingPeriod != 0,
+            "TenX: Plan Does not Exists or Disabled"
+        );
+        require(
+            newPrice !=
+            subscribtionSchemes_[months].price,
+            "TenX: Try a different price"
+        );
+
+        subscribtionSchemes_[months].price = newPrice;
+    }
+
+
+
     /**
      * @dev Check if share exceeds the limit.
      * @param _limit The Share Holders total limit.  
@@ -307,6 +416,14 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
 
        referalShares_ = _referralDetail;
+    }
+
+     /**
+     * @dev Updates the re investment wallet address.
+     * @param _reInvestmentWallet The reinvestment wallet address.   
+     */
+    function _setReinvestmentWallet(address _reInvestmentWallet) internal {
+        reInvestmentWallet_ = _reInvestmentWallet;
     }
 
 }
