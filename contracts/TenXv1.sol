@@ -95,7 +95,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     mapping(address => User) internal users_;
 
     /// Mapping to store the users referalId to address
-    mapping(uint256 => address) public usersReferalId_; 
+    mapping(uint256 => address) public usersAddress_; 
     
     /// Mapping to payment all the payment tokens created.
     mapping(address => PaymentToken) internal paymentTokens_;
@@ -200,7 +200,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "Tenx: Total Share Exceeds Limit"
         );
 
-        for (uint256 i=0; i < holderShares_.totalLevels; i++) {
+        for (uint256 i; i < holderShares_.totalLevels; i++) {
             _setShareHolder(
                 i,
                 _names[i],
@@ -232,8 +232,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "Tenx: Total Share Exceeds Limit"
         );
 
-        for (uint256 i=0; i < _sharePercant.length; i++) {
-            referalPercentages_[i+1] = _sharePercant[i];
+        for (uint256 i; i < _sharePercant.length; i++) {
+            referalPercentages_[i] = _sharePercant[i];
         }
     }
 
@@ -547,7 +547,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         userID_.increment();
         userReferralId = userID_.current();
         users_[_userAddress] = User(userReferralId, _referredBy, 0);
-        // referralIdToUser[userReferralId] = userAddress;
+        usersAddress_[userReferralId] = _userAddress;
     }
 
     /**
@@ -645,7 +645,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         uint256 count;
 
         for (uint256 i; i < referalShares_.totalLevels; i++) {
-            referralList[i] = usersReferalId_[currentReferralId];
+            referralList[i] = usersAddress_[currentReferralId];
             currentReferralId = users_[referralList[i]].referredBy;
             count++;
             if (currentReferralId == 0) break;
@@ -712,7 +712,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         uint256[] memory _sharePercant
     ) internal pure returns (bool) {
         uint256 accumulatedShare;
-        for (uint256 i = 0; i < _sharePercant.length; i++) {
+        for (uint256 i; i < _sharePercant.length; i++) {
             accumulatedShare = accumulatedShare + _sharePercant[i];
         }
         return accumulatedShare > _limit;
@@ -786,4 +786,157 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         reInvestmentWallet_ = _reInvestmentWallet;
     }
 
+    /**
+     * @dev Retrieves the information of a specific scheme.
+     *
+     * @param _month The Month whose information is to be retrieved.
+     *
+     * @return price The Price of the scheme.
+     * @return status The status mentioning the scheme is active or not.
+     */
+
+    function getSchemePlanInfo(
+        uint256 _month
+    ) external view returns (uint256 price, bool status) {
+        price = subscribtionSchemes_[_month].price;
+        status = subscribtionSchemes_[_month].active;
+    }
+
+    /**
+     * @dev Retrieves the information of a specific user.
+     *
+     * @param _id The Id of the user.
+     *
+     * @return userAddress The Address of the user.
+     * @return referrerId The Id of the referrer.
+     * @return referrerAddress The Address of the referrer.
+     * @return isSubscriptionActive The Boolean representing wether subscribed now
+     * 
+     * If the provided _id doesn't exist, reverts with an error message.
+     */
+
+    function getUserInfo(
+        uint256 _id
+    ) external view returns (
+        address userAddress, 
+        uint256 referrerId, 
+        address referrerAddress, 
+        bool isSubscriptionActive
+    ) {
+        require(
+            userID_.current() >= _id &&
+            _id !=0 ,
+            "Tenx: User does not exists"
+        );
+        userAddress = usersAddress_[_id];
+        referrerId = users_[userAddress].referredBy;
+        referrerAddress = usersAddress_[referrerId];
+        isSubscriptionActive = block.timestamp < users_[userAddress].subscriptionValidity;
+    }
+
+       /**
+     * @dev Retrieves the information of the payment token.
+     *
+     * @param _paymentToken The Payment Token.
+     *
+     * @return priceFeed The PriceFeed Address.
+     * @return status The Boolean representing wether its active
+     * 
+     */
+
+    function getPaymentTokenInfo(
+        address _paymentToken
+    ) external view returns (
+        address priceFeed, 
+        bool status
+    ) {
+        priceFeed = paymentTokens_[_paymentToken].priceFeed;
+        status = paymentTokens_[_paymentToken].active;
+    }
+
+    /**
+     * @dev Retrieves the reInvestment wallet address.
+     *
+     * @return Address of reinvestment wallet.
+     * 
+     */
+
+    function getReinvestmentWallet() external view returns (address) {
+        return reInvestmentWallet_;
+    }
+
+    /**
+     * @dev Retrieves Share Holder Information.
+     * @param _index The Index of the holder.
+     * @return name Name of shareholder
+     * @return walletAddress wallet address of shareholder
+     * @return sharePercentage percentage  of share
+     * @return status Status representinf if active
+
+     * If the provided _index doesn't exist, reverts with an error message.
+     */
+
+    function getShareHolder(uint256 _index) external view returns (
+        string memory name,
+        address walletAddress,
+        uint256 sharePercentage,
+        bool status
+    ) {
+        require(
+            _index <  holderShares_.totalLevels,
+            "Tenx: Invalid Holder Index"
+        );
+        name = shareHolders_[_index].name;
+        walletAddress = shareHolders_[_index].holderAddress;
+        sharePercentage = shareHolders_[_index].sharePercentage;
+        status = shareHolders_[_index].active;
+    }
+
+    /**
+     * @dev Retrieves Failed to transfer BNB's in the contract
+     * 
+     * @return BNB from failed transfers
+     */
+
+    function getIdleBNB() external view returns(uint256) {
+        return BNBFromFailedTransfers_;
+    }
+
+    /**
+     * @dev Retrieves SharHolders and Refferals Basic Information
+     * 
+     * @return totalShareHolders Number of share holders
+     * @return percantShareLimit Percentage Limit for the shareholders
+     * @return totalReferalLevels Number of referal Levels
+     * @return percantreferalLimit Percentage Limit for the affiliates
+     */
+
+    function getShareAndReferalInfo() external view returns(
+        uint256 totalShareHolders,
+        uint256 percantShareLimit,
+        uint256 totalReferalLevels,
+        uint256 percantreferalLimit
+    ) {
+        totalShareHolders = holderShares_.totalLevels;
+        percantShareLimit = holderShares_.totalShare;
+        totalReferalLevels = referalShares_.totalLevels;
+        percantreferalLimit = referalShares_.totalShare;
+    }
+
+    /**
+     * @dev Retrieves Referal Percentage Information.
+     * @param _index The Index of the holder.
+     *
+     * returns Referal Percentage of the index given
+     *
+     * If the provided _index doesn't exist, reverts with an error message.
+     */
+
+    function getReferalPercentage(uint256 _index) external view returns (uint256) {
+        require(
+            _index <  referalShares_.totalLevels,
+            "Tenx: Invalid Referal Index"
+        );
+        return referalPercentages_[_index];
+    }
 }
