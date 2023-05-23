@@ -125,7 +125,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
                 hasRole(MANAGER_ROLE, msg.sender),
-            "KyotoStake: Not Admin or Manager"
+            "Tenx: Not Admin or Manager"
         );
         _;
     }

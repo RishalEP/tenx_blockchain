@@ -17,7 +17,7 @@ const { ethers } = require("hardhat");
 const nativePriceFeed = '0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada'
 const busdPriceFeed = '0x572dDec9087154dC5dfBB1546Bb62713147e0Ab0'
   
-  describe.only("TenX Smart Contract Test-Cases", function () {
+  describe("TenX Smart Contract Test-Cases", function () {
     // We define a fixture to reuse the same setup in every test.
     // We use loadFixture to run this setup once, snapshot that state,
     // and reset Hardhat Network to that snapshot in every test.
