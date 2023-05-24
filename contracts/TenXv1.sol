@@ -191,23 +191,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             _userAddresses.length,
             "Tenx: Share Holder Level Mismsatch in Inputs"
         );
-
-        require(
-            !_isShareExceedsLimit(
-                holderShares_.totalShare,
-                _sharePercants
-                ),
-            "Tenx: Total Share Exceeds Limit"
-        );
-
-        for (uint256 i; i < holderShares_.totalLevels; i++) {
-            _setShareHolder(
-                i,
-                _names[i],
-                _userAddresses[i],
-                _sharePercants[i]
-            );        
-        }
+        _setShareHolders(_names,_userAddresses,_sharePercants);
     }
 
     /**
@@ -223,23 +207,76 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             _sharePercant.length,
             "Tenx: Input Length Mismatch"
         );
+        _setReferralPercentages(_sharePercant);
+    }
 
-        require(
-            !_isShareExceedsLimit(
-                referalShares_.totalShare,
-                _sharePercant
-                ),
-            "Tenx: Total Share Exceeds Limit"
+    /**
+     * @dev set Referral Percentages for the affiliates.
+     * @param _holderDetail The Struct `Shares` represents new share details.   
+     * @param _names The Array of share holder names.   
+     * @param _userAddresses The Array of share holder Addresses.   
+     * @param _sharePercants The Array of share holder shares .   
+     */
+
+    function setReferralInfo(
+        Shares memory _holderDetail,
+        string[] memory _names, 
+        address[] memory _userAddresses, 
+        uint256[] memory _sharePercants
+    ) external isManager {
+         require(
+            _names.length ==
+            _userAddresses.length && 
+            _sharePercants.length == 
+            _holderDetail.totalLevels &&
+            _sharePercants.length == 
+            _userAddresses.length,
+            "Tenx: Share Holder Level Mismsatch in Inputs"
         );
-
-        for (uint256 i; i < _sharePercant.length; i++) {
-            referalPercentages_[i] = _sharePercant[i];
-        }
+        _setShareHolderDetail(_holderDetail);
+        _setShareHolders(_names,_userAddresses,_sharePercants);
     }
 
 
     /**
+     * @dev set ShareHolders Info In Detail.
+     * @param _referralDetail The Struct `Shares` represents new share details.   
+     * @param _sharePercant The Array of referal percentages.   
+     */
+
+    function setReferralInfo(
+        Shares memory _referralDetail,
+        uint256[] memory _sharePercant
+    ) external isManager {
+         require(
+            _referralDetail.totalLevels ==
+            _sharePercant.length,
+            "Tenx: Input Length Mismatch"
+        );
+        _setReferalLevelDetail(_referralDetail);
+        _setReferralPercentages(_sharePercant);
+    }
+
+
+
+    /**
      * @dev Updates Reinvestment wallet address.
+     * @param _reInvestmentWallet The Reinvestmentwallet Address.   
+     */
+
+    function updateReferalInfo(
+        address _reInvestmentWallet
+    ) external isManager {
+         require(
+            _reInvestmentWallet != address(this) &&
+            _reInvestmentWallet != address(0),
+            "Tenx: Address Should not be this contract"
+        );
+        _setReinvestmentWallet(_reInvestmentWallet);
+    }
+
+    /**
+     * @dev Updates Affiliates and ShareHolder Total Share.
      * @param _reInvestmentWallet The Reinvestmentwallet Address.   
      */
 
@@ -394,7 +431,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         isManager
     {
         require(
-            subscribtionSchemes_[_months].active,
+            !subscribtionSchemes_[_months].active,
             "TenX: Plan Already Active"
         );
         subscribtionSchemes_[_months].active = true;
@@ -698,8 +735,26 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             totalAmount;
     }
 
+    /**
+     * @dev set Referral Percentages for the affiliates.
+     * @param _sharePercant The Array of referal percentages.   
+     */
 
+    function _setReferralPercentages(
+        uint256[] memory _sharePercant
+    ) internal isManager {
+        require(
+            !_isShareExceedsLimit(
+                referalShares_.totalShare,
+                _sharePercant
+                ),
+            "Tenx: Total Share Exceeds Limit"
+        );
 
+        for (uint256 i; i < _sharePercant.length; i++) {
+            referalPercentages_[i] = _sharePercant[i];
+        }
+    }
 
     /**
      * @dev Check if share exceeds the limit.
@@ -718,7 +773,45 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         return accumulatedShare > _limit;
     }
 
-    
+    /**
+     * @dev Updates the Total Share holder Levels and Percentage.
+     * @param _names The Array of share holder names.   
+     * @param _userAddresses The Array of share holder Addresses.   
+     * @param _sharePercants The Array of share holder shares .   
+     */
+    function _setShareHolders(
+        string[] memory _names, 
+        address[] memory _userAddresses, 
+        uint256[] memory _sharePercants
+    ) internal isManager {
+        require(
+            _names.length ==
+            _userAddresses.length && 
+            _sharePercants.length == 
+            holderShares_.totalLevels &&
+            _sharePercants.length == 
+            _userAddresses.length,
+            "Tenx: Share Holder Level Mismsatch in Inputs"
+        );
+
+        require(
+            !_isShareExceedsLimit(
+                holderShares_.totalShare,
+                _sharePercants
+                ),
+            "Tenx: Total Share Exceeds Limit"
+        );
+
+        for (uint256 i; i < holderShares_.totalLevels; i++) {
+            _setShareHolder(
+                i,
+                _names[i],
+                _userAddresses[i],
+                _sharePercants[i]
+            );        
+        }
+    }
+
     /**
      * @dev Set a single share holder details.
      * @param _id Id of the share holder. usually from 0 to levels.  
@@ -761,7 +854,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     /**
      * @dev Updates the Total referral Levels and Percentage.
-     * @param _referralDetail The Share Holders Details to be updated.   
+     * @param _referralDetail The Affiliates Details to be updated.   
      */
     function _setReferalLevelDetail(Shares memory _referralDetail) internal {
         require(
