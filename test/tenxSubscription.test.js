@@ -14,11 +14,18 @@ const {
     referalLimit
 } = MAINNET_VALUES
 
-describe.only("tenxV1 Contract Configuration", async () => {
+describe("tenxV1 Contract Configuration", async () => {
     
     async function deployTenxFixture() {
 
-        const [deployer, subscriber1, subscriber2] = await ethers.getSigners();
+        const [
+            deployer, 
+            subscriber,
+            subscriber1, 
+            subscriber2, 
+            subscriber3, 
+            subscriber4
+        ] = await ethers.getSigners();
 
         const TenxV1 = await ethers.getContractFactory("TenxUpgradableV1");
         const tenxV1 = await upgrades.deployProxy(
@@ -86,25 +93,29 @@ describe.only("tenxV1 Contract Configuration", async () => {
         return {
             deployer,
             tenxV1,
+            subscriber,
             subscriber1,
             subscriber2,
+            subscriber3,
+            subscriber4,
             paymentTokenBnb:updatedPaymentTokens[0],
             paymentTokenBusd:updatedPaymentTokens[1],
-            shareHolderWallets:shareHoldersInfo.address
+            shareHolderWallets:shareHoldersInfo.address,
+            busd
         };
     }
 
     describe("Subscription Using BNB", async () => {
 
         it("Should be able subscribe using BNB", async () => {
-            const { tenxV1, subscriber1, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
             const discount = 0
             const subscriptionAmount = await tenxV1.getSubscriptionAmount(
                 subscriptionSchemes[0].month,
                 paymentTokenBnb.address,
                 discount
             )
-            const subscribe = await tenxV1.connect(subscriber1).subscribe(
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
                 subscriptionAmount,
                 subscriptionSchemes[0].month,
                 0,
@@ -113,24 +124,531 @@ describe.only("tenxV1 Contract Configuration", async () => {
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
             expect(subscribe).to.have.property('hash')
-            const block = await ethers.provider.getBlock(subscribe.blockNumber);
-            const subscribedTime = block.timestamp
-            const userSubscription = await tenxV1. 
-            console.log({subscribedTime})
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscription).to.have.property('isSubscriptionActive')
+                .to.be.true
+            expect(userSubscription).to.have.property('referalId')
+                .to.be.not.equal(0)
+            expect(userSubscription).to.have.property('referrerId')
+                .to.be.equal(0)
         });
 
-        // it("Should be able to add new manager successfully", async () => {
-        //     const { newManager, tenxV1 } = await loadFixture(deployTenxFixture);
-        //     const managerRole = await tenxV1.MANAGER_ROLE();
-        //     await tenxV1.grantRole(managerRole, newManager.address);
-        //     const isManager = await tenxV1.hasRole(managerRole, newManager.address);
-        //     expect(isManager).to.be.true;
-        // });
+        it("Should revert on subscription if plan is inactive ", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.disableSubscribtionPlan(subscriptionSchemes[0].month);
+            await expect(tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )).to.be.revertedWith("TenX: Subscription plan not active");
+        });
 
-        // it("Should revert for unauthorized wallet", async () => {
-        //     const { newManager, tenxV1 } = await loadFixture(deployTenxFixture);
-        //     await expect(tenxV1.connect(newManager).pause()
-        //     ).to.be.revertedWith("tenxV1: Not Admin or Manager");
-        // });
+        it("Should revert on subscription if Payment token is inactive ", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.disablePaymentToken(paymentTokenBnb.address);
+            await expect(tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )).to.be.revertedWith("TenX: Payment Token not active");
+        });
+
+        it("Should revert on subscription if Amount Payed is less ", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            const amountToSend = subscriptionAmount.sub(10)
+            await expect(tenxV1.connect(subscriber).subscribe(
+                amountToSend,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )).to.be.revertedWith("TenX: amount paid less. increase slippage");
+            await expect(tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(amountToSend) }
+            )).to.be.revertedWith("TenX: Mismatch in Amount send");
+        });
+     
+        it("Should revert on subscription if referred ID/User is invalid", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await expect(tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                1,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )).to.be.revertedWith("TenX: Invalid referredBy");
+        });
+
+        it("Should able to refer a user and subscribe", async () => {
+            const { tenxV1, subscriber, subscriber2, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+            const subscriber1Info = await tenxV1.getUserInfo(subscriber.address)
+            const subscribe = await tenxV1.connect(subscriber2).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                subscriber1Info.referalId,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+            expect(subscribe).to.have.property('hash')
+            const subscriber2Info = await tenxV1.getUserInfo(subscriber2.address)
+            expect(subscriber2Info).to.have.property('referrerId')
+                .to.be.equal(subscriber1Info.referalId)
+            expect(subscriber2Info).to.have.property('referrerAddress')
+                .to.be.equal(subscriber.address)
+        });
+
+        it("Should able to subscribe more than once", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+            expect(subscribe).to.have.property('hash')
+        });
+
+        it("Should be able to subscribe on discount if applicable ", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const originalSubscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                0
+            )
+            const discount = 2000
+            const expectedDiscount = originalSubscriptionAmount.mul(discount).div(10000)
+            const discountedSubscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            expect(discountedSubscriptionAmount).to.be.equal(expectedDiscount)
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                discountedSubscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(discountedSubscriptionAmount) }
+            )
+            expect(subscribe).to.have.property('hash')
+        });
+
+        it("Should split the total amount among all affiliates and share holders correctly", async () => {
+            const { 
+                tenxV1, 
+                subscriber, 
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4, 
+                paymentTokenBnb 
+            } = await loadFixture(deployTenxFixture);
+            const referrals = [
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4 ]
+
+            const discount = 1000
+
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            let referrerId = 0
+            for(const referral of referrals) {
+                await tenxV1.connect(referral).subscribe(
+                    subscriptionAmount,
+                    subscriptionSchemes[0].month,
+                    referrerId,
+                    paymentTokenBnb.address,
+                    discount,
+                    { value: ethers.BigNumber.from(subscriptionAmount) }
+                )
+                referrerId = (await tenxV1.getUserInfo(referral.address)).referalId
+            }
+
+            let affiliatesInitialBalance = {}
+            let shareHoldersInitialBalance = {}
+            const reinvestmentInitialBalance = await ethers.provider.getBalance(reinvestmentWallet)
+
+            for(const referral of referrals) {
+                const userBalance = await ethers.provider.getBalance(referral.address);
+                affiliatesInitialBalance = 
+                    {...affiliatesInitialBalance, ...{[referral.address]:userBalance}}
+            }
+
+            for(const holder of shareHolders) {
+                const userBalance = await ethers.provider.getBalance(holder.address);
+                shareHoldersInitialBalance = 
+                    {...shareHoldersInitialBalance, ...{[holder.address]:userBalance}}
+            }
+
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                referrerId,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+
+            let totalReferals = 0;
+
+            expect(subscribe).to.have.property('hash')
+            for(const [index, referral] of referrals.reverse().entries()) {
+                const userBalance = await ethers.provider.getBalance(referral.address);
+                const expectedShare = subscriptionAmount.mul(referalPercantage[index]).div(10000) 
+                expect(userBalance).to.be.equal(
+                    affiliatesInitialBalance[referral.address].add(expectedShare))
+                totalReferals = expectedShare.add(totalReferals)
+            }
+
+            const remainingShare = subscriptionAmount.sub(totalReferals)
+            let totalShares = 0;
+
+            for(const holder of shareHolders) {
+                const userBalance = await ethers.provider.getBalance(holder.address);
+                const expectedShare = remainingShare.mul(holder.percentage).div(10000) 
+                expect(userBalance).to.be.equal(
+                    shareHoldersInitialBalance[holder.address].add(expectedShare))
+                totalShares = expectedShare.add(totalShares)
+            }
+
+            const reinvestmentFinalBalance = await ethers.provider.getBalance(reinvestmentWallet);
+            const reinvestmentShare = remainingShare.sub(totalShares)
+            expect(reinvestmentFinalBalance).to.be.equal(
+                reinvestmentInitialBalance.add(reinvestmentShare))
+        });
+
+    });
+
+    describe("Subscription Using BUSD", async () => {
+
+        it("Should be able subscribe using BUSD", async () => {
+            const { tenxV1, subscriber, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+            
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount,
+            )
+            expect(subscribe).to.have.property('hash')
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscription).to.have.property('isSubscriptionActive')
+                .to.be.true
+            expect(userSubscription).to.have.property('referalId')
+                .to.be.not.equal(0)
+            expect(userSubscription).to.have.property('referrerId')
+                .to.be.equal(0)
+        });
+
+        it("Should revert on subscription if Payment token is inactive ", async () => {
+            const { tenxV1, subscriber, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+
+            await tenxV1.disablePaymentToken(paymentTokenBusd.address);
+            await expect(tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount
+            )).to.be.revertedWith("TenX: Payment Token not active");
+        });
+
+        it("Should revert on subscription if Amount Payed is less ", async () => {
+            const { tenxV1, subscriber, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+            await busd.mint(subscriber.address,1000)
+            const amountToSend = subscriptionAmount.sub(10)
+            await busd.connect(subscriber).approve(tenxV1.address,amountToSend)
+
+            await expect(tenxV1.connect(subscriber).subscribe(
+                amountToSend,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount,
+            )).to.be.revertedWith("TenX: amount paid less. increase slippage");
+        });
+
+        it("Should able to refer a user and subscribe", async () => {
+            const { tenxV1, subscriber, subscriber2, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount
+            )
+            const subscriber1Info = await tenxV1.getUserInfo(subscriber.address)
+            await busd.mint(subscriber2.address,1000)
+            await busd.connect(subscriber2).approve(tenxV1.address,subscriptionAmount)
+            const subscribe = await tenxV1.connect(subscriber2).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                subscriber1Info.referalId,
+                paymentTokenBusd.address,
+                discount
+            )
+            expect(subscribe).to.have.property('hash')
+            const subscriber2Info = await tenxV1.getUserInfo(subscriber2.address)
+            expect(subscriber2Info).to.have.property('referrerId')
+                .to.be.equal(subscriber1Info.referalId)
+            expect(subscriber2Info).to.have.property('referrerAddress')
+                .to.be.equal(subscriber.address)
+        });
+
+        it("Should able to subscribe more than once", async () => {
+            const { tenxV1, subscriber, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount,
+            )
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount
+            )
+            expect(subscribe).to.have.property('hash')
+        });
+
+        it("Should be able to subscribe on discount if applicable ", async () => {
+            const { tenxV1, subscriber, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
+            const originalSubscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                0
+            )
+            const discount = 2000
+            const expectedDiscount = originalSubscriptionAmount.mul(discount).div(10000)
+            const discountedSubscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+            expect(discountedSubscriptionAmount).to.be.equal(expectedDiscount)
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,discountedSubscriptionAmount)
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                discountedSubscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBusd.address,
+                discount
+            )
+            expect(subscribe).to.have.property('hash')
+        });
+
+        it("Should split the total amount among all affiliates and share holders correctly", async () => {
+            const { 
+                tenxV1, 
+                subscriber, 
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4, 
+                paymentTokenBusd,
+                busd 
+            } = await loadFixture(deployTenxFixture);
+            const referrals = [
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4 ]
+
+            const discount = 1000
+
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+            let referrerId = 0
+            for(const referral of referrals) {
+                await busd.mint(referral.address,1000)
+                await busd.connect(referral).approve(tenxV1.address,subscriptionAmount)
+                await tenxV1.connect(referral).subscribe(
+                    subscriptionAmount,
+                    subscriptionSchemes[0].month,
+                    referrerId,
+                    paymentTokenBusd.address,
+                    discount
+                )
+                referrerId = (await tenxV1.getUserInfo(referral.address)).referalId
+            }
+
+            let affiliatesInitialBalance = {}
+            let shareHoldersInitialBalance = {}
+            const reinvestmentInitialBalance = await busd.balanceOf(reinvestmentWallet)
+
+            for(const referral of referrals) {
+                const userBalance = await busd.balanceOf(referral.address);
+                affiliatesInitialBalance = 
+                    {...affiliatesInitialBalance, ...{[referral.address]:userBalance}}
+            }
+
+            for(const holder of shareHolders) {
+                const userBalance = await busd.balanceOf(holder.address);
+                shareHoldersInitialBalance = 
+                    {...shareHoldersInitialBalance, ...{[holder.address]:userBalance}}
+            }
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                referrerId,
+                paymentTokenBusd.address,
+                discount
+            )
+
+            let totalReferals = 0;
+
+            expect(subscribe).to.have.property('hash')
+            for(const [index, referral] of referrals.reverse().entries()) {
+                const userBalance = await busd.balanceOf(referral.address);
+                const expectedShare = subscriptionAmount.mul(referalPercantage[index]).div(10000) 
+                expect(userBalance).to.be.equal(
+                    affiliatesInitialBalance[referral.address].add(expectedShare))
+                totalReferals = expectedShare.add(totalReferals)
+            }
+
+            const remainingShare = subscriptionAmount.sub(totalReferals)
+            let totalShares = 0;
+
+            for(const holder of shareHolders) {
+                const userBalance = await busd.balanceOf(holder.address);
+                const expectedShare = remainingShare.mul(holder.percentage).div(10000) 
+                expect(userBalance).to.be.equal(
+                    shareHoldersInitialBalance[holder.address].add(expectedShare))
+                totalShares = expectedShare.add(totalShares)
+            }
+
+            const reinvestmentFinalBalance = await busd.balanceOf(reinvestmentWallet);
+            const reinvestmentShare = remainingShare.sub(totalShares)
+            expect(reinvestmentFinalBalance).to.be.equal(
+                reinvestmentInitialBalance.add(reinvestmentShare))
+        });
+
     });
 });

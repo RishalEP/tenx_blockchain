@@ -218,7 +218,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param _sharePercants The Array of share holder shares .   
      */
 
-    function setReferralInfo(
+    function setShareHolderInfo(
         Shares memory _holderDetail,
         string[] memory _names, 
         address[] memory _userAddresses, 
@@ -329,9 +329,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      */
     function enablePaymentToken(address _paymentToken) external isManager {
         require(
-            paymentTokens_[_paymentToken].priceFeed != address(0) &&
             !paymentTokens_[_paymentToken].active,
-            "TenX: PaymentToken not added or already active"
+            "TenX: PaymentToken already active"
         );
 
         paymentTokens_[_paymentToken].active = true;
@@ -438,6 +437,28 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
+     * @dev To fetch the subscribtion amount for a plan.
+     * @param _months The months for the plan .  
+     * @param _paymentToken The token used for payments .  
+     * @param _discountPercant percentage of discount to apply .  
+     */
+
+    function getSubscriptionAmount(
+        uint256 _months, 
+        address _paymentToken, 
+        uint256 _discountPercant
+    )
+        external
+        view
+        returns (uint256 subscriptionAmount)
+    {
+        subscriptionAmount = _getSubscriptionAmount(
+            _months,
+            _paymentToken,
+            _discountPercant);
+    }
+
+    /**
      * @dev To subscribe a plan for the user.
      * @param _amount The amount send to subscribe.  
      * @param _months The plans duration in months.  
@@ -458,6 +479,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "TenX: Subscription plan not active"
         );
         require(
+            paymentTokens_[_paymentToken].active,
+            "TenX: Payment Token not active"
+        );
+        require(
             _getSubscriptionAmount(
                 _months, _paymentToken, _discountPercant) <= _amount,
             "TenX: amount paid less. increase slippage"
@@ -475,7 +500,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
                 "TenX: Insufficient Token Allowance"
             );
             require(msg.value == 0, "TenX: Not Required to transfer BNB");
-        } else require(_amount == msg.value, "TenX: Mismatch in Amount send ");
+        } else require(_amount == msg.value, "TenX: Mismatch in Amount send");
 
         uint256 amountAfterReferals = _amount;
         User memory user = users_[msg.sender];
@@ -519,7 +544,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         
         if (_referredBy != 0){
             require(
-                _referredBy <= userID_.current(),
+                _referredBy <= userID_.current() &&
+                usersAddress_[_referredBy] != address(0),
                 "TenX: Invalid referredBy"
             );
         }
@@ -1001,19 +1027,19 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @return totalShareHolders Number of share holders
      * @return percantShareLimit Percentage Limit for the shareholders
      * @return totalReferalLevels Number of referal Levels
-     * @return percantreferalLimit Percentage Limit for the affiliates
+     * @return percantReferalLimit Percentage Limit for the affiliates
      */
 
     function getShareAndReferalInfo() external view returns(
         uint256 totalShareHolders,
         uint256 percantShareLimit,
         uint256 totalReferalLevels,
-        uint256 percantreferalLimit
+        uint256 percantReferalLimit
     ) {
         totalShareHolders = holderShares_.totalLevels;
         percantShareLimit = holderShares_.totalShare;
         totalReferalLevels = referalShares_.totalLevels;
-        percantreferalLimit = referalShares_.totalShare;
+        percantReferalLimit = referalShares_.totalShare;
     }
 
     /**
