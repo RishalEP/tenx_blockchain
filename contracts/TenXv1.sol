@@ -218,7 +218,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param _sharePercants The Array of share holder shares .   
      */
 
-    function setReferralInfo(
+    function setShareHolderInfo(
         Shares memory _holderDetail,
         string[] memory _names, 
         address[] memory _userAddresses, 
@@ -329,9 +329,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      */
     function enablePaymentToken(address _paymentToken) external isManager {
         require(
-            paymentTokens_[_paymentToken].priceFeed != address(0) &&
             !paymentTokens_[_paymentToken].active,
-            "TenX: PaymentToken not added or already active"
+            "TenX: PaymentToken already active"
         );
 
         paymentTokens_[_paymentToken].active = true;
@@ -456,6 +455,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         require(
             subscribtionSchemes_[_months].active,
             "TenX: Subscription plan not active"
+        );
+        require(
+            paymentTokens_[_paymentToken].active,
+            "TenX: Payment Token not active"
         );
         require(
             _getSubscriptionAmount(
@@ -1001,19 +1004,19 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @return totalShareHolders Number of share holders
      * @return percantShareLimit Percentage Limit for the shareholders
      * @return totalReferalLevels Number of referal Levels
-     * @return percantreferalLimit Percentage Limit for the affiliates
+     * @return percantReferalLimit Percentage Limit for the affiliates
      */
 
     function getShareAndReferalInfo() external view returns(
         uint256 totalShareHolders,
         uint256 percantShareLimit,
         uint256 totalReferalLevels,
-        uint256 percantreferalLimit
+        uint256 percantReferalLimit
     ) {
         totalShareHolders = holderShares_.totalLevels;
         percantShareLimit = holderShares_.totalShare;
         totalReferalLevels = referalShares_.totalLevels;
-        percantreferalLimit = referalShares_.totalShare;
+        percantReferalLimit = referalShares_.totalShare;
     }
 
     /**
