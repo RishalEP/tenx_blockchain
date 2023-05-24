@@ -113,6 +113,10 @@ describe.only("tenxV1 Contract Configuration", async () => {
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
             expect(subscribe).to.have.property('hash')
+            const block = await ethers.provider.getBlock(subscribe.blockNumber);
+            const subscribedTime = block.timestamp
+            const userSubscription = await tenxV1. 
+            console.log({subscribedTime})
         });
 
         // it("Should be able to add new manager successfully", async () => {

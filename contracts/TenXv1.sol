@@ -218,7 +218,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param _sharePercants The Array of share holder shares .   
      */
 
-    function setShareHolderInfo(
+    function setReferralInfo(
         Shares memory _holderDetail,
         string[] memory _names, 
         address[] memory _userAddresses, 
@@ -329,8 +329,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      */
     function enablePaymentToken(address _paymentToken) external isManager {
         require(
+            paymentTokens_[_paymentToken].priceFeed != address(0) &&
             !paymentTokens_[_paymentToken].active,
-            "TenX: PaymentToken already active"
+            "TenX: PaymentToken not added or already active"
         );
 
         paymentTokens_[_paymentToken].active = true;
@@ -437,28 +438,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
-     * @dev To fetch the subscribtion amount for a plan.
-     * @param _months The months for the plan .  
-     * @param _paymentToken The token used for payments .  
-     * @param _discountPercant percentage of discount to apply .  
-     */
-
-    function getSubscriptionAmount(
-        uint256 _months, 
-        address _paymentToken, 
-        uint256 _discountPercant
-    )
-        external
-        view
-        returns (uint256 subscriptionAmount)
-    {
-        subscriptionAmount = _getSubscriptionAmount(
-            _months,
-            _paymentToken,
-            _discountPercant);
-    }
-
-    /**
      * @dev To subscribe a plan for the user.
      * @param _amount The amount send to subscribe.  
      * @param _months The plans duration in months.  
@@ -477,10 +456,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         require(
             subscribtionSchemes_[_months].active,
             "TenX: Subscription plan not active"
-        );
-        require(
-            paymentTokens_[_paymentToken].active,
-            "TenX: Payment Token not active"
         );
         require(
             _getSubscriptionAmount(
@@ -923,9 +898,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /**
      * @dev Retrieves the information of a specific user.
      *
-     * @param _id The Id of the user.
+     * @param _userAddress The users address to fetch info.
      *
-     * @return userAddress The Address of the user.
+     * @return referalId The Id of the user.
      * @return referrerId The Id of the referrer.
      * @return referrerAddress The Address of the referrer.
      * @return isSubscriptionActive The Boolean representing wether subscribed now
@@ -934,22 +909,22 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      */
 
     function getUserInfo(
-        uint256 _id
+        address _userAddress
     ) external view returns (
-        address userAddress, 
+        uint256 referalId, 
         uint256 referrerId, 
         address referrerAddress, 
         bool isSubscriptionActive
     ) {
         require(
-            userID_.current() >= _id &&
-            _id !=0 ,
+            userID_.current() >= users_[_userAddress].referralId &&
+            users_[_userAddress].referralId !=0 ,
             "Tenx: User does not exists"
         );
-        userAddress = usersAddress_[_id];
-        referrerId = users_[userAddress].referredBy;
+        referalId = users_[_userAddress].referralId;
+        referrerId = users_[_userAddress].referredBy;
         referrerAddress = usersAddress_[referrerId];
-        isSubscriptionActive = block.timestamp < users_[userAddress].subscriptionValidity;
+        isSubscriptionActive = block.timestamp < users_[_userAddress].subscriptionValidity;
     }
 
        /**
@@ -1026,19 +1001,19 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @return totalShareHolders Number of share holders
      * @return percantShareLimit Percentage Limit for the shareholders
      * @return totalReferalLevels Number of referal Levels
-     * @return percantReferalLimit Percentage Limit for the affiliates
+     * @return percantreferalLimit Percentage Limit for the affiliates
      */
 
     function getShareAndReferalInfo() external view returns(
         uint256 totalShareHolders,
         uint256 percantShareLimit,
         uint256 totalReferalLevels,
-        uint256 percantReferalLimit
+        uint256 percantreferalLimit
     ) {
         totalShareHolders = holderShares_.totalLevels;
         percantShareLimit = holderShares_.totalShare;
         totalReferalLevels = referalShares_.totalLevels;
-        percantReferalLimit = referalShares_.totalShare;
+        percantreferalLimit = referalShares_.totalShare;
     }
 
     /**
