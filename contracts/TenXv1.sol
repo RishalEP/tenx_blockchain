@@ -437,6 +437,28 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
+     * @dev To fetch the subscribtion amount for a plan.
+     * @param _months The months for the plan .  
+     * @param _paymentToken The token used for payments .  
+     * @param _discountPercant percentage of discount to apply .  
+     */
+
+    function getSubscriptionAmount(
+        uint256 _months, 
+        address _paymentToken, 
+        uint256 _discountPercant
+    )
+        external
+        view
+        returns (uint256 subscriptionAmount)
+    {
+        subscriptionAmount = _getSubscriptionAmount(
+            _months,
+            _paymentToken,
+            _discountPercant);
+    }
+
+    /**
      * @dev To subscribe a plan for the user.
      * @param _amount The amount send to subscribe.  
      * @param _months The plans duration in months.  

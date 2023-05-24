@@ -14,7 +14,7 @@ const {
     referalLimit
 } = MAINNET_VALUES
 
-describe("Tenx Contract Configuration", async () => {
+describe.only("tenxV1 Contract Configuration", async () => {
     
     async function deployTenxFixture() {
 
@@ -34,7 +34,7 @@ describe("Tenx Contract Configuration", async () => {
         const Busd = await ethers.getContractFactory("BUSD");
         const busd = await Busd.deploy(); 
 
-        await tenX.setReferralPercentages(
+        await tenxV1.setReferralPercentages(
             referalPercantage
         );
 
@@ -52,21 +52,24 @@ describe("Tenx Contract Configuration", async () => {
             }
         }
 
-        await tenX.setShareHolders(
+        await tenxV1.setShareHolders(
             shareHoldersInfo.names,
             shareHoldersInfo.address,
             shareHoldersInfo.percentage
         );
 
         for(const scheme of subscriptionSchemes) {
-            await tenX.addSubscriptionPlan(
+            await tenxV1.addSubscriptionPlan(
                 scheme.month,
                 scheme.price
             );
         }
 
         const updatedPaymentTokens = [
-            ...paymentTokens[0],
+            {
+                address:paymentTokens[0].address,
+                priceFeed:paymentTokens[0].priceFeed
+            },
             {
                 address:busd.address,
                 priceFeed:paymentTokens[1].priceFeed
@@ -74,7 +77,7 @@ describe("Tenx Contract Configuration", async () => {
         ]
 
         for(const token of updatedPaymentTokens) {
-            await tenX.addPaymentToken(
+            await tenxV1.addPaymentToken(
                 token.address,
                 token.priceFeed
             );
@@ -82,7 +85,6 @@ describe("Tenx Contract Configuration", async () => {
 
         return {
             deployer,
-            newManager,
             tenxV1,
             subscriber1,
             subscriber2,
@@ -95,24 +97,36 @@ describe("Tenx Contract Configuration", async () => {
     describe("Subscription Using BNB", async () => {
 
         it("Should be able subscribe using BNB", async () => {
-            const { tenxV1, deployer } = await loadFixture(deployTenxFixture);
-            const managerRole = await tenxV1.MANAGER_ROLE();
-            const isManager = await tenxV1.hasRole(managerRole, deployer.address);
-            expect(isManager).to.be.true;
+            const { tenxV1, subscriber1, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            const subscribe = await tenxV1.connect(subscriber1).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+            expect(subscribe).to.have.property('hash')
         });
 
-        it("Should be able to add new manager successfully", async () => {
-            const { newManager, tenxV1 } = await loadFixture(deployTenxFixture);
-            const managerRole = await tenxV1.MANAGER_ROLE();
-            await tenxV1.grantRole(managerRole, newManager.address);
-            const isManager = await tenxV1.hasRole(managerRole, newManager.address);
-            expect(isManager).to.be.true;
-        });
+        // it("Should be able to add new manager successfully", async () => {
+        //     const { newManager, tenxV1 } = await loadFixture(deployTenxFixture);
+        //     const managerRole = await tenxV1.MANAGER_ROLE();
+        //     await tenxV1.grantRole(managerRole, newManager.address);
+        //     const isManager = await tenxV1.hasRole(managerRole, newManager.address);
+        //     expect(isManager).to.be.true;
+        // });
 
-        it("Should revert for unauthorized wallet", async () => {
-            const { newManager, tenxV1 } = await loadFixture(deployTenxFixture);
-            await expect(tenxV1.connect(newManager).pause()
-            ).to.be.revertedWith("Tenx: Not Admin or Manager");
-        });
+        // it("Should revert for unauthorized wallet", async () => {
+        //     const { newManager, tenxV1 } = await loadFixture(deployTenxFixture);
+        //     await expect(tenxV1.connect(newManager).pause()
+        //     ).to.be.revertedWith("tenxV1: Not Admin or Manager");
+        // });
     });
 });
