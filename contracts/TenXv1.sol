@@ -115,7 +115,83 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /// Variable store the shareHolder info in detail.
     Shares internal holderShares_;
 
-    // Add Events Here
+    /**
+     * @dev Event emitted when Manager updates Reinvestment wallet.
+     * @param reinvestWallet is new reinvestment wallet.
+    */
+
+    event ReInvestmentWalletUpdate(address indexed reinvestWallet);
+
+    /**
+     * @dev Event emitted when Payment token is added or pricefeed for existing token is updated     * @param reinvestWallet is new reinvestment wallet.
+     * @param paymentToken is the payment token address.
+     * @param priceFeed is the chainlink pricefeed related to the payment token.
+    */
+   
+    event AddEditPaymentToken(
+        address indexed paymentToken,
+        address indexed priceFeed
+    );
+
+    /**
+     * @dev Event emitted when Payment token enabled or disabled for subscription.
+     * @param paymentToken is the payment token address.
+     * @param status is the boolean representing wether enabled or disabled.
+    */
+    event EnableDisablePaymentToken(
+        address indexed paymentToken,
+        bool status
+    );
+
+
+    /**
+     * @dev Event emitted when subscription plan is added or price for existing plan is updated     * @param reinvestWallet is new reinvestment wallet.
+     * @param months is the plan months.
+     * @param price is the plans price
+    */
+
+    event AddEditSubscriptionScheme(
+        uint256 indexed months,
+        uint256 indexed price
+    );
+
+    /**
+     * @dev Event emitted when Subscription plan is enabled or disabled for subscription.
+     * @param months is the plan months.
+     * @param status is the boolean representing wether enabled or disabled.
+    */
+    event EnableDisableSubscriprionScheme(
+        uint256 indexed months,
+        bool status
+    );
+
+    /**
+     * @dev Event emitted when a user is subscribed/manager subscribes for the user.
+     * @param subscriber is the users address.
+     * @param userId is the users chain id.
+     * @param period is the subscription period in months.
+     * @param amount is the anount spent for subscription. if zero freely subscribed by manager
+    */
+
+    event Subscription(
+        address indexed subscriber,
+        uint256 indexed userId,
+        uint256 indexed period,
+        uint256  amount
+    );
+
+    /**
+     * @dev Event emitted when a user is created.
+     * @param subscriber is the users address.
+     * @param userId is the users chain id.
+     * @param userRefererId is the referred users chain id, if zero not refered by anyone else.
+    */
+
+    event CreateUser(
+        address indexed subscriber,
+        uint256 indexed userId,
+        uint256 indexed userRefererId
+    );
 
 
     /**
@@ -257,24 +333,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         _setReferralPercentages(_sharePercant);
     }
 
-
-
-    /**
-     * @dev Updates Reinvestment wallet address.
-     * @param _reInvestmentWallet The Reinvestmentwallet Address.   
-     */
-
-    function updateReferalInfo(
-        address _reInvestmentWallet
-    ) external isManager {
-         require(
-            _reInvestmentWallet != address(this) &&
-            _reInvestmentWallet != address(0),
-            "Tenx: Address Should not be this contract"
-        );
-        _setReinvestmentWallet(_reInvestmentWallet);
-    }
-
     /**
      * @dev Updates Affiliates and ShareHolder Total Share.
      * @param _reInvestmentWallet The Reinvestmentwallet Address.   
@@ -289,6 +347,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "Tenx: Address Should not be this contract"
         );
         _setReinvestmentWallet(_reInvestmentWallet);
+
+        emit ReInvestmentWalletUpdate(_reInvestmentWallet);
     }
 
     /**
@@ -306,6 +366,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
         require(_priceFeed != address(0), "TenX: priceFeed address could not be zero");
         paymentTokens_[_paymentToken] = PaymentToken(_priceFeed, true);
+
+        emit AddEditPaymentToken(_paymentToken,_priceFeed);
     }
 
     /**
@@ -321,6 +383,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
 
         paymentTokens_[_paymentToken].active = false;
+
+        emit EnableDisablePaymentToken(_paymentToken,false);
     }
 
     /**
@@ -334,6 +398,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
 
         paymentTokens_[_paymentToken].active = true;
+
+        emit EnableDisablePaymentToken(_paymentToken,true);
     }
 
     /**
@@ -352,6 +418,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         require(_priceFeed != address(0), "TenX: priceFeed address zero");
         paymentTokens_[_paymentToken].priceFeed = _priceFeed;
+
+        emit AddEditPaymentToken(_paymentToken,_priceFeed);
+
     }
 
 
@@ -377,6 +446,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             _months * 30 days,
             true
         );
+
+        emit AddEditSubscriptionScheme(_months,_price);
     }
 
     /**
@@ -402,6 +473,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
 
         subscribtionSchemes_[_months].price = _newPrice;
+
+        emit AddEditSubscriptionScheme(_months,_newPrice);
     }
 
     /**
@@ -419,6 +492,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "TenX: Plan Does not Exists or Already Disabled"
         );
         subscribtionSchemes_[_months].active = false;
+
+        emit EnableDisableSubscriprionScheme(_months,false);
     }
 
     /**
@@ -434,6 +509,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "TenX: Plan Already Active"
         );
         subscribtionSchemes_[_months].active = true;
+
+        emit EnableDisableSubscriprionScheme(_months,true);
     }
 
     /**
@@ -522,6 +599,13 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             block.timestamp + subscribtionSchemes_[_months].lockingPeriod;
         
         users_[msg.sender].subscriptionValidity = subscriptionValidity;
+
+        emit Subscription(
+            msg.sender,
+            users_[msg.sender].referralId,
+            _months,
+            _amount
+        );
     }
 
     /**
@@ -562,6 +646,13 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             (block.timestamp + subscribtionSchemes_[_months].lockingPeriod);
         
         users_[_userAddress].subscriptionValidity = subscriptionValidity;
+
+        emit Subscription(
+            _userAddress,
+            users_[_userAddress].referralId,
+            _months,
+            0
+        );
     }
 
     /**
@@ -611,6 +702,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         userReferralId = userID_.current();
         users_[_userAddress] = User(userReferralId, _referredBy, 0);
         usersAddress_[userReferralId] = _userAddress;
+
+        emit CreateUser(_userAddress,userReferralId,_referredBy);
     }
 
     /**

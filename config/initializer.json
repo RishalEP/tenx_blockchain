@@ -49,7 +49,7 @@
                 "priceFeed":"0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE"
             },
             {
-                "address":"0xe9e7cea3dedca5984780bafc599bd69add087d56",
+                "address":"0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56",
                 "priceFeed":"0xcBb98864Ef56E9042e7d2efef76141f15731B82f"
             }
         ]
@@ -104,7 +104,7 @@
                 "priceFeed":"0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada"
             },
             {
-                "address":"0xb7628D153C0D2B843F2f9EF2Fb3EF118029E0121",
+                "address":"0x22a4db5B132B4307faeeb4858550268b07b922d4",
                 "priceFeed":"0x0715A7794a1dc8e42615F059dD6e406A6594651A"
             }
         ]

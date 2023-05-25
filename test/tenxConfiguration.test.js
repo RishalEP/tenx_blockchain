@@ -89,7 +89,7 @@ describe("Tenx Contract Configuration", async () => {
 
         it("Should be able to Fetch ShareHolders and Affiliates info", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
-            const getInfo = await tenxV1.getShareAndReferalInfo();
+            await tenxV1.getShareAndReferalInfo();
             expect(await tenxV1.getShareAndReferalInfo())
                 .to.have.property('totalShareHolders')
                 .to.equal(shareHolders.length);
@@ -98,11 +98,17 @@ describe("Tenx Contract Configuration", async () => {
                 .to.equal(referalPercantage.length);
         });
 
-        it("Should be able to update Reinvestment Wallet", async () => {
+        it("Should be able to update Reinvestment Wallet and emit event", async () => {
             const { tenxV1, newManager } = await loadFixture(deployTenxFixture);
-            await tenxV1.updateReinvestmentWallet(newManager.address);
-            expect(await tenxV1.getReinvestmentWallet())
-                .to.equal(newManager.address);
+            const updateReinvest = await tenxV1.updateReinvestmentWallet(newManager.address);
+            const receipt = await updateReinvest.wait();
+            expect(updateReinvest).to.have.property('hash')
+            const event = receipt.events.find((event) =>
+                event.event === 'ReInvestmentWalletUpdate'
+                );
+            expect(event).to.not.be.undefined;
+            expect(event.args.reinvestWallet).to.equal(newManager.address);
+            expect(await tenxV1.getReinvestmentWallet()).to.equal(newManager.address);
         });
 
         it("Should be able to set Affiliate Percentages", async () => {
@@ -217,14 +223,21 @@ describe("Tenx Contract Configuration", async () => {
 
     describe("Subscription Plans", async () => {
 
-        it("Should be able to set all initial plans", async () => {
+        it("Should be able to set all initial plans and emit event", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             for(const scheme of subscriptionSchemes) {
                 const addScheme = await tenxV1.addSubscriptionPlan(
                     scheme.month,
                     scheme.price
                 );
+                const receipt = await addScheme.wait();
                 expect(addScheme).to.have.property('hash')
+                const event = receipt.events.find((event) =>
+                    event.event === 'AddEditSubscriptionScheme'
+                    );
+                expect(event).to.not.be.undefined;
+                expect(event.args.months).to.equal(scheme.month);
+                expect(event.args.price).to.equal(scheme.price);
                 const schemePlan = await tenxV1.getSchemePlanInfo(scheme.month)
                 expect(schemePlan).to.have.property('price').to.equal(scheme.price)
                 expect(schemePlan).to.have.property('status').to.be.true
@@ -246,13 +259,31 @@ describe("Tenx Contract Configuration", async () => {
                 .to.be.revertedWith("TenX: Plan Already Exists");
         });
 
-        it("Should able to disable/enable a scheme", async () => {
+        it("Should able to disable/enable a scheme and emit event", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             await tenxV1.addSubscriptionPlan(1,1);
-            await tenxV1.disableSubscribtionPlan(1);
+            const disable = await tenxV1.disableSubscribtionPlan(1);
+            const receiptDisable = await disable.wait();
+            expect(disable).to.have.property('hash')
+            const eventDisable = receiptDisable.events.find((event) =>
+                event.event === 'EnableDisableSubscriprionScheme'
+                );
+            expect(eventDisable).to.not.be.undefined;
+            expect(eventDisable.args.months).to.equal(1);
+            expect(eventDisable.args.status).to.be.false;
+
             expect(await tenxV1.getSchemePlanInfo(1))
                 .to.have.property('status').to.be.false 
-            await tenxV1.enableSubscribtionPlan(1);
+            
+            const enable = await tenxV1.enableSubscribtionPlan(1);
+            const receiptEnable = await enable.wait();
+            expect(enable).to.have.property('hash')
+            const eventEnable = receiptEnable.events.find((event) =>
+                event.event === 'EnableDisableSubscriprionScheme'
+                );
+            expect(eventEnable).to.not.be.undefined;
+            expect(eventEnable.args.months).to.equal(1);
+            expect(eventEnable.args.status).to.be.true;
             expect(await tenxV1.getSchemePlanInfo(1))
                 .to.have.property('status').to.be.true 
         });
@@ -267,10 +298,18 @@ describe("Tenx Contract Configuration", async () => {
                 .to.be.revertedWith("TenX: Plan Does not Exists or Already Disabled");
         });
 
-        it("Should able to change subscription plan's price if not disabled", async () => {
+        it("Should able to change subscription plan's price if not disabled and emit event", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             await tenxV1.addSubscriptionPlan(1,1);
-            await tenxV1.changeSubscriptionPricing(1,2);
+            const setPrice = await tenxV1.changeSubscriptionPricing(1,2);
+            const receipt = await setPrice.wait();
+            expect(setPrice).to.have.property('hash')
+            const event = receipt.events.find((event) =>
+                event.event === 'AddEditSubscriptionScheme'
+                );
+            expect(event).to.not.be.undefined;
+            expect(event.args.months).to.equal(1);
+            expect(event.args.price).to.equal(2);
             const schemePlan = await tenxV1.getSchemePlanInfo(1)
             expect(schemePlan).to.have.property('price').to.equal(2)
             await expect(tenxV1.changeSubscriptionPricing(1,2))
@@ -283,7 +322,7 @@ describe("Tenx Contract Configuration", async () => {
 
     describe("Payment Tokens", async () => {
 
-        it("Should be able to add payment tokens", async () => {
+        it("Should be able to add payment tokens and emit event", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             for(const token of paymentTokens) {
                 const addPaymentToken = await tenxV1.addPaymentToken(
@@ -291,6 +330,13 @@ describe("Tenx Contract Configuration", async () => {
                     token.priceFeed
                 );
                 expect(addPaymentToken).to.have.property('hash')
+                const receipt = await addPaymentToken.wait();
+                const event = receipt.events.find((event) =>
+                    event.event === 'AddEditPaymentToken'
+                    );
+                expect(event).to.not.be.undefined;
+                expect(event.args.paymentToken).to.equal(token.address);
+                expect(event.args.priceFeed).to.equal(token.priceFeed);
                 expect(await tenxV1.getPaymentTokenInfo(token.address))
                     .to.have.property('priceFeed').to.equal(token.priceFeed)
                 expect(await tenxV1.getPaymentTokenInfo(token.address))
@@ -309,6 +355,13 @@ describe("Tenx Contract Configuration", async () => {
                 paymentTokens[1].priceFeed
             );
             expect(changeFeed).to.have.property('hash')
+                const receipt = await changeFeed.wait();
+                const event = receipt.events.find((event) =>
+                    event.event === 'AddEditPaymentToken'
+                    );
+            expect(event).to.not.be.undefined;
+            expect(event.args.paymentToken).to.equal(paymentTokens[0].address);
+            expect(event.args.priceFeed).to.equal(paymentTokens[1].priceFeed);
             expect(await tenxV1.getPaymentTokenInfo(paymentTokens[0].address))
                 .to.have.property('priceFeed').to.equal(paymentTokens[1].priceFeed)
             await expect(tenxV1.changePriceFeed(
@@ -316,13 +369,30 @@ describe("Tenx Contract Configuration", async () => {
                 .to.be.revertedWith("TenX: PaymentToken not added or disabled");
         });
     
-        it("Should able to disable/enable a payment token", async () => {
+        it("Should able to disable/enable a payment token and emit event", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             await tenxV1.addPaymentToken(paymentTokens[0].address,paymentTokens[0].priceFeed);
-            await tenxV1.disablePaymentToken(paymentTokens[0].address);
+            const disable = await tenxV1.disablePaymentToken(paymentTokens[0].address);
+            const receiptDisable = await disable.wait();
+            expect(disable).to.have.property('hash')
+            const eventDisable = receiptDisable.events.find((event) =>
+                event.event === 'EnableDisablePaymentToken'
+                );
+            expect(eventDisable).to.not.be.undefined;
+            expect(eventDisable.args.paymentToken).to.equal(paymentTokens[0].address);
+            expect(eventDisable.args.status).to.be.false;
             expect(await tenxV1.getPaymentTokenInfo(paymentTokens[0].address))
                 .to.have.property('status').to.be.false 
-            await tenxV1.enablePaymentToken(paymentTokens[0].address);
+
+            const enable = await tenxV1.enablePaymentToken(paymentTokens[0].address);
+            const receiptEnable = await enable.wait();
+            expect(enable).to.have.property('hash')
+            const eventEnable = receiptEnable.events.find((event) =>
+                event.event === 'EnableDisablePaymentToken'
+                );
+            expect(eventEnable).to.not.be.undefined;
+            expect(eventEnable.args.paymentToken).to.equal(paymentTokens[0].address);
+            expect(eventEnable.args.status).to.be.true;
             expect(await tenxV1.getPaymentTokenInfo(paymentTokens[0].address))
                 .to.have.property('status').to.be.true 
         });
