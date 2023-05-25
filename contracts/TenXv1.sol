@@ -557,11 +557,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         }
 
         uint256 subscriptionValidity = 
-            users_[msg.sender].subscriptionValidity > block.timestamp ?
-            users_[msg.sender].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod :
-            block.timestamp + subscribtionSchemes_[_months].lockingPeriod;
+            block.timestamp < users_[_userAddress].subscriptionValidity ?
+            (users_[_userAddress].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod) :
+            (block.timestamp + subscribtionSchemes_[_months].lockingPeriod);
         
-        users_[msg.sender].subscriptionValidity = subscriptionValidity;
+        users_[_userAddress].subscriptionValidity = subscriptionValidity;
     }
 
     /**

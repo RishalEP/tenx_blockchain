@@ -104,6 +104,7 @@ describe("Tenx Contract Configuration", async () => {
             expect(await tenxV1.getReinvestmentWallet())
                 .to.equal(newManager.address);
         });
+
         it("Should be able to set Affiliate Percentages", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             await tenxV1.setReferralPercentages(referalPercantage);
@@ -112,6 +113,7 @@ describe("Tenx Contract Configuration", async () => {
                     .to.equal(level);
             }
         });
+
         it("Should be able to set ShareHolders", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             let shareHoldersInfo = {
@@ -142,6 +144,7 @@ describe("Tenx Contract Configuration", async () => {
                     .to.be.true;
             }
         });
+
         it("Should be able to update Referal Limit/Levels and the percentages", async () => {
             const { tenxV1 } = await loadFixture(deployTenxFixture);
             const toUpdatePercentage = [...referalPercantage,200]
@@ -162,6 +165,7 @@ describe("Tenx Contract Configuration", async () => {
                     .to.equal(level);
             }
         });
+
         it("Should be able to update Share Holders Limit/Levels and the other holder informations", async () => {
             const { tenxV1,newManager } = await loadFixture(deployTenxFixture);
             const toUpdateShareHolders = [
@@ -208,7 +212,6 @@ describe("Tenx Contract Configuration", async () => {
                     .to.be.true;
             }
         });
-
 
     });
 

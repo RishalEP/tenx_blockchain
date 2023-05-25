@@ -1,5 +1,6 @@
 const {
     loadFixture,
+    time
   } = require("@nomicfoundation/hardhat-network-helpers");
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
@@ -391,6 +392,124 @@ describe("Tenx Subscription", async () => {
                 reinvestmentInitialBalance.add(reinvestmentShare))
         });
 
+        it("Should not send to affiliates whose subscription is expired", async () => {
+            const { 
+                tenxV1, 
+                subscriber, 
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4, 
+                paymentTokenBnb 
+            } = await loadFixture(deployTenxFixture);
+            const referrals = [
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4 ]
+
+            const discount = 1000
+
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            let referrerId = 0
+            for(const referral of referrals) {
+                await tenxV1.connect(referral).subscribe(
+                    subscriptionAmount,
+                    subscriptionSchemes[0].month,
+                    referrerId,
+                    paymentTokenBnb.address,
+                    discount,
+                    { value: ethers.BigNumber.from(subscriptionAmount) }
+                )
+                referrerId = (await tenxV1.getUserInfo(referral.address)).referalId
+            }
+
+            const timesToAdd = subscriptionSchemes[0].month * 31 * 24 * 60 * 60; // Assuming 30 days in a month
+
+            await ethers.provider.send("evm_increaseTime", [timesToAdd]);
+            await ethers.provider.send("evm_mine");
+
+            const renewedReferals = [subscriber2,subscriber4]
+
+            for(const referral of renewedReferals) {
+                await tenxV1.connect(referral).subscribe(
+                    subscriptionAmount,
+                    subscriptionSchemes[0].month,
+                    0,
+                    paymentTokenBnb.address,
+                    discount,
+                    { value: ethers.BigNumber.from(subscriptionAmount) }
+                )
+            }
+
+            let affiliatesInitialBalance = {}
+            let shareHoldersInitialBalance = {}
+            const reinvestmentInitialBalance = await ethers.provider.getBalance(reinvestmentWallet)
+
+            for(const referral of referrals) {
+                const userBalance = await ethers.provider.getBalance(referral.address);
+                affiliatesInitialBalance = 
+                    {...affiliatesInitialBalance, ...{[referral.address]:userBalance}}
+            }
+
+            for(const holder of shareHolders) {
+                const userBalance = await ethers.provider.getBalance(holder.address);
+                shareHoldersInitialBalance = 
+                    {...shareHoldersInitialBalance, ...{[holder.address]:userBalance}}
+            }
+
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                referrerId,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+
+            let totalReferals = 0;
+            let reinvestmentAffilifateShare = 0;
+
+            expect(subscribe).to.have.property('hash')
+            for(const [index, referral] of referrals.reverse().entries()) {
+                const userBalance = await ethers.provider.getBalance(referral.address);
+                const expectedShare = subscriptionAmount.mul(referalPercantage[index]).div(10000) 
+
+                if(renewedReferals.includes(referral))
+                {
+                    expect(userBalance).to.be.equal(
+                        affiliatesInitialBalance[referral.address].add(expectedShare))
+                }
+                else {
+                    expect(userBalance).to.be.equal(
+                        affiliatesInitialBalance[referral.address])
+                    reinvestmentAffilifateShare =  expectedShare.add(reinvestmentAffilifateShare)
+                }
+
+                totalReferals = expectedShare.add(totalReferals)
+            }
+
+            const remainingShare = subscriptionAmount.sub(totalReferals)
+            let totalShares = 0;
+
+            for(const holder of shareHolders) {
+                const userBalance = await ethers.provider.getBalance(holder.address);
+                const expectedShare = remainingShare.mul(holder.percentage).div(10000) 
+                expect(userBalance).to.be.equal(
+                    shareHoldersInitialBalance[holder.address].add(expectedShare))
+                totalShares = expectedShare.add(totalShares)
+            }
+
+            const reinvestmentFinalBalance = await ethers.provider.getBalance(reinvestmentWallet);
+            const reinvestmentShare = remainingShare.sub(totalShares).add(reinvestmentAffilifateShare)
+            expect(reinvestmentFinalBalance).to.be.equal(
+                reinvestmentInitialBalance.add(reinvestmentShare))
+        });
+
     });
 
     describe("Subscription Using BUSD", async () => {
@@ -650,5 +769,207 @@ describe("Tenx Subscription", async () => {
                 reinvestmentInitialBalance.add(reinvestmentShare))
         });
 
+        it("Should not send to affiliates whose subscription is expired", async () => {
+            const { 
+                tenxV1, 
+                subscriber, 
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4, 
+                paymentTokenBusd,
+                busd 
+            } = await loadFixture(deployTenxFixture);
+            const referrals = [
+                subscriber1,
+                subscriber2,
+                subscriber3,
+                subscriber4 ]
+
+            const discount = 1000
+
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBusd.address,
+                discount
+            )
+            let referrerId = 0
+            for(const referral of referrals) {
+                await busd.mint(referral.address,1000)
+                await busd.connect(referral).approve(tenxV1.address,subscriptionAmount)
+                await tenxV1.connect(referral).subscribe(
+                    subscriptionAmount,
+                    subscriptionSchemes[0].month,
+                    referrerId,
+                    paymentTokenBusd.address,
+                    discount
+                )
+                referrerId = (await tenxV1.getUserInfo(referral.address)).referalId
+            }
+
+            const timesToAdd = subscriptionSchemes[0].month * 31 * 24 * 60 * 60; // Assuming 30 days in a month
+
+            await ethers.provider.send("evm_increaseTime", [timesToAdd]);
+            await ethers.provider.send("evm_mine");
+
+            const renewedReferals = [subscriber2,subscriber4]
+
+            for(const referral of renewedReferals) {
+                await busd.mint(referral.address,1000)
+                await busd.connect(referral).approve(tenxV1.address,subscriptionAmount)
+                await tenxV1.connect(referral).subscribe(
+                    subscriptionAmount,
+                    subscriptionSchemes[0].month,
+                    referrerId,
+                    paymentTokenBusd.address,
+                    discount
+                )
+            }
+
+            let affiliatesInitialBalance = {}
+            let shareHoldersInitialBalance = {}
+            const reinvestmentInitialBalance = await busd.balanceOf(reinvestmentWallet)
+
+            for(const referral of referrals) {
+                const userBalance = await busd.balanceOf(referral.address);
+                affiliatesInitialBalance = 
+                    {...affiliatesInitialBalance, ...{[referral.address]:userBalance}}
+            }
+
+            for(const holder of shareHolders) {
+                const userBalance = await busd.balanceOf(holder.address);
+                shareHoldersInitialBalance = 
+                    {...shareHoldersInitialBalance, ...{[holder.address]:userBalance}}
+            }
+            await busd.mint(subscriber.address,1000)
+            await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                referrerId,
+                paymentTokenBusd.address,
+                discount
+            )
+
+            let totalReferals = 0;
+            let reinvestmentAffilifateShare = 0;
+
+            expect(subscribe).to.have.property('hash')
+            for(const [index, referral] of referrals.reverse().entries()) {
+                const userBalance = await busd.balanceOf(referral.address);
+                const expectedShare = subscriptionAmount.mul(referalPercantage[index]).div(10000) 
+                
+                if(renewedReferals.includes(referral))
+                {
+                    expect(userBalance).to.be.equal(
+                        affiliatesInitialBalance[referral.address].add(expectedShare))
+                }
+                else {
+                    expect(userBalance).to.be.equal(
+                        affiliatesInitialBalance[referral.address])
+                    reinvestmentAffilifateShare =  expectedShare.add(reinvestmentAffilifateShare)
+                }
+
+                totalReferals = expectedShare.add(totalReferals)
+            }
+
+            const remainingShare = subscriptionAmount.sub(totalReferals)
+            let totalShares = 0;
+
+            for(const holder of shareHolders) {
+                const userBalance = await busd.balanceOf(holder.address);
+                const expectedShare = remainingShare.mul(holder.percentage).div(10000) 
+                expect(userBalance).to.be.equal(
+                    shareHoldersInitialBalance[holder.address].add(expectedShare))
+                totalShares = expectedShare.add(totalShares)
+            }
+
+            const reinvestmentFinalBalance = await busd.balanceOf(reinvestmentWallet);
+            const reinvestmentShare = remainingShare.sub(totalShares).add(reinvestmentAffilifateShare)
+            expect(reinvestmentFinalBalance).to.be.equal(
+                reinvestmentInitialBalance.add(reinvestmentShare))
+        });
+
     });
+
+    describe("Free Subscription Initiated by Manager", async () => {
+        
+        it("Should be able for manager to give free subscription to user", async () => {
+            const { tenxV1, subscriber, busd } = await loadFixture(deployTenxFixture);
+
+            const subscribe = await tenxV1.addSubscriptionForUser(
+                subscriber.address,
+                subscriptionSchemes[0].month,
+                0
+            )
+            expect(subscribe).to.have.property('hash')
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscription).to.have.property('isSubscriptionActive')
+                .to.be.true
+            expect(userSubscription).to.have.property('referalId')
+                .to.be.not.equal(0)
+            expect(userSubscription).to.have.property('referrerId')
+                .to.be.equal(0)
+        });
+
+        it("Should recieve affiliate share for manager subscribed users", async () => {
+            const { tenxV1, subscriber, subscriber1, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+
+            await tenxV1.addSubscriptionForUser(
+                subscriber1.address,
+                subscriptionSchemes[0].month,
+                0
+            )
+            
+            const referalId = (await tenxV1.getUserInfo(subscriber1.address)).referalId
+            const refererInitialBalance = await ethers.provider.getBalance(subscriber.address)
+            const reinvestmentInitialBalance = await ethers.provider.getBalance(reinvestmentWallet)
+
+            let shareHoldersInitialBalance = {}
+
+            for(const holder of shareHolders) {
+                const userBalance = await ethers.provider.getBalance(holder.address);
+                shareHoldersInitialBalance = 
+                    {...shareHoldersInitialBalance, ...{[holder.address]:userBalance}}
+            }
+
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                0
+            )
+
+            const subscribe = await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                referalId,
+                paymentTokenBnb.address,
+                0,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+
+            expect(subscribe).to.have.property('hash')
+            
+            const refererFinalBalance = await ethers.provider.getBalance(subscriber1.address);
+            const expectedRefererShare = subscriptionAmount.mul(referalPercantage[0]).div(10000) 
+            expect(refererFinalBalance).to.be.equal(
+                refererInitialBalance.add(expectedRefererShare))
+
+            const remainingShare = subscriptionAmount.sub(expectedRefererShare)
+            let totalShares = 0;
+
+            for(const holder of shareHolders) {
+                const userBalance = await ethers.provider.getBalance(holder.address);
+                const expectedShare = remainingShare.mul(holder.percentage).div(10000) 
+                expect(userBalance).to.be.equal(
+                    shareHoldersInitialBalance[holder.address].add(expectedShare))
+                totalShares = expectedShare.add(totalShares)
+            }
+
+            const reinvestmentFinalBalance = await ethers.provider.getBalance(reinvestmentWallet);
+            const reinvestmentShare = remainingShare.sub(totalShares)
+            expect(reinvestmentFinalBalance).to.be.equal(
+                reinvestmentInitialBalance.add(reinvestmentShare))
+        });
+    })
 });
