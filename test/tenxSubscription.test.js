@@ -14,7 +14,7 @@ const {
     referalLimit
 } = MAINNET_VALUES
 
-describe("tenxV1 Contract Configuration", async () => {
+describe("Tenx Subscription", async () => {
     
     async function deployTenxFixture() {
 
