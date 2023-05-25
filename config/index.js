@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 "use strict";
+const {MAINNET_VALUES,TESTNET_VALUES} = require("./initializer.json")
 
 module.exports = {
     
@@ -22,4 +23,9 @@ module.exports = {
   MAINNET: "https://bsc-dataseed.binance.org",
 
   ETHERSCAN_API_KEY: "G8YT9FVQE41RBHU53RDMJ47SGS3JZ839KA",
+
+  MAINNET_VALUES,
+
+  TESTNET_VALUES
+
 };

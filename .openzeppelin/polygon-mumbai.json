@@ -1,0 +1,403 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0xe548F2F3b5Cc0b39bF49f40e6Fca2685d7BFAdcd",
+    "txHash": "0xe360969241e02ada4c13c0e06441dd0236838c2f790672621ec61296b5750aec"
+  },
+  "proxies": [
+    {
+      "address": "0x280f49e79C94c66CD22DBab7425Fb3020c2F1586",
+      "txHash": "0xb38a9c155e0d23c579134009ce5092ed7c03dba6c029272eb8ced51a93789b64",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x217f40F691EfBABCe51D974f31De74a527a8469c",
+      "txHash": "0x5b626da7de526e626cc213ed35d242b64a8f5cb38408ef9b5b27847688adfd2d",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xcbBF7bD38da0DFE825B06AD445958891B5b59f77",
+      "txHash": "0x94d61f5878479bc2d9da79db679bddb6f1b9c62139c3d867e8261a2e9d1c3f55",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x6A252d7272020352D6625c5b389A38801aDa4fc3",
+      "txHash": "0xdcb4927e7f0f858e243c7cfba861a3c0564894efa19274abc7cccdaa59371f80",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "d440f028891268dfc13e57862d4c3bf5d5ba377aa549fcf68da6114915baa891": {
+      "address": "0xB6280d44125f9Efd0652c1D938e867e88F5916BD",
+      "txHash": "0x72151eb243fa6e19538fe7f4d99723067d66821f85af7c7b3a74254b2815de09",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\introspection\\ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)80_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol:61"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol:259"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "BNBFromFailedTransfers_",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_uint256",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:86"
+          },
+          {
+            "label": "userID_",
+            "offset": 0,
+            "slot": "202",
+            "type": "t_struct(Counter)1502_storage",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:89"
+          },
+          {
+            "label": "reInvestmentWallet_",
+            "offset": 0,
+            "slot": "203",
+            "type": "t_address",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:92"
+          },
+          {
+            "label": "users_",
+            "offset": 0,
+            "slot": "204",
+            "type": "t_mapping(t_address,t_struct(User)4766_storage)",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:95"
+          },
+          {
+            "label": "usersAddress_",
+            "offset": 0,
+            "slot": "205",
+            "type": "t_mapping(t_uint256,t_address)",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:98"
+          },
+          {
+            "label": "paymentTokens_",
+            "offset": 0,
+            "slot": "206",
+            "type": "t_mapping(t_address,t_struct(PaymentToken)4771_storage)",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:101"
+          },
+          {
+            "label": "shareHolders_",
+            "offset": 0,
+            "slot": "207",
+            "type": "t_mapping(t_uint256,t_struct(ShareHolder)4780_storage)",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:104"
+          },
+          {
+            "label": "subscribtionSchemes_",
+            "offset": 0,
+            "slot": "208",
+            "type": "t_mapping(t_uint256,t_struct(SubscribtionScheme)4759_storage)",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:107"
+          },
+          {
+            "label": "referalPercentages_",
+            "offset": 0,
+            "slot": "209",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:110"
+          },
+          {
+            "label": "referalShares_",
+            "offset": 0,
+            "slot": "210",
+            "type": "t_struct(Shares)4785_storage",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:113"
+          },
+          {
+            "label": "holderShares_",
+            "offset": 0,
+            "slot": "212",
+            "type": "t_struct(Shares)4785_storage",
+            "contract": "TenxUpgradableV1",
+            "src": "contracts\\TenXv1.sol:116"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(PaymentToken)4771_storage)": {
+            "label": "mapping(address => struct TenxUpgradableV1.PaymentToken)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(User)4766_storage)": {
+            "label": "mapping(address => struct TenxUpgradableV1.User)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)80_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_address)": {
+            "label": "mapping(uint256 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(ShareHolder)4780_storage)": {
+            "label": "mapping(uint256 => struct TenxUpgradableV1.ShareHolder)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(SubscribtionScheme)4759_storage)": {
+            "label": "mapping(uint256 => struct TenxUpgradableV1.SubscribtionScheme)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Counter)1502_storage": {
+            "label": "struct CountersUpgradeable.Counter",
+            "members": [
+              {
+                "label": "_value",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PaymentToken)4771_storage": {
+            "label": "struct TenxUpgradableV1.PaymentToken",
+            "members": [
+              {
+                "label": "priceFeed",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "active",
+                "type": "t_bool",
+                "offset": 20,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(RoleData)80_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(ShareHolder)4780_storage": {
+            "label": "struct TenxUpgradableV1.ShareHolder",
+            "members": [
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "holderAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "sharePercentage",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "active",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(Shares)4785_storage": {
+            "label": "struct TenxUpgradableV1.Shares",
+            "members": [
+              {
+                "label": "totalLevels",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "totalShare",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(SubscribtionScheme)4759_storage": {
+            "label": "struct TenxUpgradableV1.SubscribtionScheme",
+            "members": [
+              {
+                "label": "price",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "lockingPeriod",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "active",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_struct(User)4766_storage": {
+            "label": "struct TenxUpgradableV1.User",
+            "members": [
+              {
+                "label": "referralId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "referredBy",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "subscriptionValidity",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

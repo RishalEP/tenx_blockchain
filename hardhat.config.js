@@ -27,8 +27,8 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: MUMBAI_RPC_URL,
-        blockNumber: 32898798
+        url: MAINNET,
+        blockNumber: 17278074
       }
     },
     custom: {

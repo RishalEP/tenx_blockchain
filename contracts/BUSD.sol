@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract BUSD is ERC20 {
     constructor() ERC20("BUSD Token", "BUSD") {
-        _mint(msg.sender, 500000 * 10 ** decimals());
+        _mint(msg.sender, 5000000 * 10 ** decimals());
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 6;
+        return 18;
     }
 
     function mint(address to, uint256 amount) public {
