@@ -846,7 +846,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         subscriptionAmount = 
             _discountPercant > 0 ?
-            (totalAmount * _discountPercant) / 10000 :
+            totalAmount - ((totalAmount * _discountPercant) / 10000) :
             totalAmount;
     }
 

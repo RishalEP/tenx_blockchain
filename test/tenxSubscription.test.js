@@ -332,7 +332,7 @@ describe("Tenx Subscription", async () => {
                 paymentTokenBnb.address,
                 discount
             )
-            expect(discountedSubscriptionAmount).to.be.equal(expectedDiscount)
+            expect(discountedSubscriptionAmount).to.be.equal(originalSubscriptionAmount.sub(expectedDiscount))
             const subscribe = await tenxV1.connect(subscriber).subscribe(
                 discountedSubscriptionAmount,
                 subscriptionSchemes[0].month,
@@ -745,7 +745,7 @@ describe("Tenx Subscription", async () => {
                 paymentTokenBusd.address,
                 discount
             )
-            expect(discountedSubscriptionAmount).to.be.equal(expectedDiscount)
+            expect(discountedSubscriptionAmount).to.be.equal(originalSubscriptionAmount.sub(expectedDiscount))
             await busd.mint(subscriber.address,1000)
             await busd.connect(subscriber).approve(tenxV1.address,discountedSubscriptionAmount)
             const subscribe = await tenxV1.connect(subscriber).subscribe(

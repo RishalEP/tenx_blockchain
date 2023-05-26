@@ -229,31 +229,6 @@
                 {
                     "indexed": true,
                     "internalType": "address",
-                    "name": "subscriber",
-                    "type": "address"
-                },
-                {
-                    "indexed": true,
-                    "internalType": "uint256",
-                    "name": "userId",
-                    "type": "uint256"
-                },
-                {
-                    "indexed": true,
-                    "internalType": "uint256",
-                    "name": "userRefererId",
-                    "type": "uint256"
-                }
-            ],
-            "name": "CreateUser",
-            "type": "event"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": true,
-                    "internalType": "address",
                     "name": "paymentToken",
                     "type": "address"
                 },
@@ -417,6 +392,12 @@
                 },
                 {
                     "indexed": true,
+                    "internalType": "uint256",
+                    "name": "referedBy",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": false,
                     "internalType": "uint256",
                     "name": "period",
                     "type": "uint256"
@@ -1228,7 +1209,7 @@
             "type": "function"
         }
     ],
-    "TenxUpgradableV1_ADDRESS": "0x6254b692933008EaB49968Ca1aaf4B1F8Ee06495",
+    "TenxUpgradableV1_ADDRESS": "0x904A03D5a428A4dA25f0eFd99f553120Fd13e046",
     "TenxUpgradableV1_CHAINID": 80001,
     "BUSD_ABI": [
         {
