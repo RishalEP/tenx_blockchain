@@ -423,6 +423,12 @@
                 },
                 {
                     "indexed": false,
+                    "internalType": "uint256",
+                    "name": "subscriptionValidity",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": false,
                     "internalType": "address",
                     "name": "paymentToken",
                     "type": "address"
@@ -1222,7 +1228,7 @@
             "type": "function"
         }
     ],
-    "TenxUpgradableV1_ADDRESS": "0x00aD8C43f1D15B0B07e5aefd2fFc3f100869399c",
+    "TenxUpgradableV1_ADDRESS": "0x6254b692933008EaB49968Ca1aaf4B1F8Ee06495",
     "TenxUpgradableV1_CHAINID": 80001,
     "BUSD_ABI": [
         {
