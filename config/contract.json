@@ -189,6 +189,107 @@
             "anonymous": false,
             "inputs": [
                 {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "paymentToken",
+                    "type": "address"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "priceFeed",
+                    "type": "address"
+                }
+            ],
+            "name": "AddEditPaymentToken",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "months",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "price",
+                    "type": "uint256"
+                }
+            ],
+            "name": "AddEditSubscriptionScheme",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "subscriber",
+                    "type": "address"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "userId",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "userRefererId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "CreateUser",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "paymentToken",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "bool",
+                    "name": "status",
+                    "type": "bool"
+                }
+            ],
+            "name": "EnableDisablePaymentToken",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "months",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "bool",
+                    "name": "status",
+                    "type": "bool"
+                }
+            ],
+            "name": "EnableDisableSubscriptionScheme",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
                     "indexed": false,
                     "internalType": "uint8",
                     "name": "version",
@@ -209,6 +310,19 @@
                 }
             ],
             "name": "Paused",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "reinvestWallet",
+                    "type": "address"
+                }
+            ],
+            "name": "ReInvestmentWalletUpdate",
             "type": "event"
         },
         {
@@ -284,6 +398,43 @@
                 }
             ],
             "name": "RoleRevoked",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "subscriber",
+                    "type": "address"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "userId",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "period",
+                    "type": "uint256"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "address",
+                    "name": "paymentToken",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint256",
+                    "name": "amount",
+                    "type": "uint256"
+                }
+            ],
+            "name": "Subscription",
             "type": "event"
         },
         {
@@ -1046,19 +1197,6 @@
                     "type": "address"
                 }
             ],
-            "name": "updateReferalInfo",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "address",
-                    "name": "_reInvestmentWallet",
-                    "type": "address"
-                }
-            ],
             "name": "updateReinvestmentWallet",
             "outputs": [],
             "stateMutability": "nonpayable",
@@ -1084,7 +1222,7 @@
             "type": "function"
         }
     ],
-    "TenxUpgradableV1_ADDRESS": "0x654fC2deb0415e5341edb472cD2327841daD2cc0",
+    "TenxUpgradableV1_ADDRESS": "0x00aD8C43f1D15B0B07e5aefd2fFc3f100869399c",
     "TenxUpgradableV1_CHAINID": 80001,
     "BUSD_ABI": [
         {

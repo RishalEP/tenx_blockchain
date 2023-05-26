@@ -108,7 +108,7 @@ describe("Tenx Subscription", async () => {
 
     describe("Subscription Using BNB", async () => {
 
-        it("Should be able subscribe using BNB", async () => {
+        it("Should be able subscribe using BNB and emit events", async () => {
             const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
             const discount = 0
             const subscriptionAmount = await tenxV1.getSubscriptionAmount(
@@ -125,6 +125,20 @@ describe("Tenx Subscription", async () => {
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
             expect(subscribe).to.have.property('hash')
+
+            await expect(subscribe)
+                .to.emit(tenxV1, "CreateUser")
+                .withArgs(subscriber.address,1,0);
+
+            await expect(subscribe)
+                .to.emit(tenxV1, "Subscription")
+                .withArgs(
+                    subscriber.address,
+                    1,
+                    subscriptionSchemes[0].month,
+                    paymentTokenBnb.address,
+                    subscriptionAmount);
+
             const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
             expect(userSubscription).to.have.property('isSubscriptionActive')
                 .to.be.true
@@ -217,7 +231,7 @@ describe("Tenx Subscription", async () => {
             )).to.be.revertedWith("TenX: Invalid referredBy");
         });
 
-        it("Should able to refer a user and subscribe", async () => {
+        it("Should able to refer a user and subscribe and emit event", async () => {
             const { tenxV1, subscriber, subscriber2, paymentTokenBnb } = await loadFixture(deployTenxFixture);
             const discount = 0
             const subscriptionAmount = await tenxV1.getSubscriptionAmount(
@@ -242,6 +256,11 @@ describe("Tenx Subscription", async () => {
                 discount,
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
+            
+            await expect(subscribe)
+                .to.emit(tenxV1, "CreateUser")
+                .withArgs(subscriber2.address,2,subscriber1Info.referalId);
+        
             expect(subscribe).to.have.property('hash')
             const subscriber2Info = await tenxV1.getUserInfo(subscriber2.address)
             expect(subscriber2Info).to.have.property('referrerId')
@@ -392,7 +411,7 @@ describe("Tenx Subscription", async () => {
                 reinvestmentInitialBalance.add(reinvestmentShare))
         });
 
-        it("Should not send to affiliates whose subscription is expired", async () => {
+        it("Should not send referals to affiliates whose subscription is expired", async () => {
             const { 
                 tenxV1, 
                 subscriber, 
@@ -514,7 +533,7 @@ describe("Tenx Subscription", async () => {
 
     describe("Subscription Using BUSD", async () => {
 
-        it("Should be able subscribe using BUSD", async () => {
+        it("Should be able subscribe using BUSD and emit event", async () => {
             const { tenxV1, subscriber, paymentTokenBusd, busd } = await loadFixture(deployTenxFixture);
             const discount = 0
             const subscriptionAmount = await tenxV1.getSubscriptionAmount(
@@ -534,6 +553,20 @@ describe("Tenx Subscription", async () => {
                 discount,
             )
             expect(subscribe).to.have.property('hash')
+            
+            await expect(subscribe)
+                .to.emit(tenxV1, "CreateUser")
+                .withArgs(subscriber.address,1,0);
+
+            await expect(subscribe)
+                .to.emit(tenxV1, "Subscription")
+                .withArgs(
+                    subscriber.address,
+                    1,
+                    subscriptionSchemes[0].month,
+                    paymentTokenBusd.address,
+                    subscriptionAmount);
+    
             const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
             expect(userSubscription).to.have.property('isSubscriptionActive')
                 .to.be.true
@@ -769,7 +802,7 @@ describe("Tenx Subscription", async () => {
                 reinvestmentInitialBalance.add(reinvestmentShare))
         });
 
-        it("Should not send to affiliates whose subscription is expired", async () => {
+        it("Should not send referals to affiliates whose subscription is expired", async () => {
             const { 
                 tenxV1, 
                 subscriber, 
@@ -894,8 +927,9 @@ describe("Tenx Subscription", async () => {
 
     describe("Free Subscription Initiated by Manager", async () => {
         
-        it("Should be able for manager to give free subscription to user", async () => {
-            const { tenxV1, subscriber, busd } = await loadFixture(deployTenxFixture);
+        it("Should be able for manager to give free subscription to user and emit event", async () => {
+            const { tenxV1, subscriber } = await loadFixture(deployTenxFixture);
+            const zeroAddress = ethers.constants.AddressZero;
 
             const subscribe = await tenxV1.addSubscriptionForUser(
                 subscriber.address,
@@ -903,6 +937,20 @@ describe("Tenx Subscription", async () => {
                 0
             )
             expect(subscribe).to.have.property('hash')
+        
+            await expect(subscribe)
+                .to.emit(tenxV1, "CreateUser")
+                .withArgs(subscriber.address,1,0);
+
+            await expect(subscribe)
+                .to.emit(tenxV1, "Subscription")
+                .withArgs(
+                    subscriber.address,
+                    1,
+                    subscriptionSchemes[0].month,
+                    zeroAddress,
+                    0);
+    
             const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
             expect(userSubscription).to.have.property('isSubscriptionActive')
                 .to.be.true

@@ -160,7 +160,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param months is the plan months.
      * @param status is the boolean representing wether enabled or disabled.
     */
-    event EnableDisableSubscriprionScheme(
+    event EnableDisableSubscriptionScheme(
         uint256 indexed months,
         bool status
     );
@@ -170,6 +170,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param subscriber is the users address.
      * @param userId is the users chain id.
      * @param period is the subscription period in months.
+     * @param paymentToken Payment tokens address used for subscription.
      * @param amount is the anount spent for subscription. if zero freely subscribed by manager
     */
 
@@ -177,6 +178,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         address indexed subscriber,
         uint256 indexed userId,
         uint256 indexed period,
+        address paymentToken,
         uint256  amount
     );
 
@@ -493,7 +495,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
         subscribtionSchemes_[_months].active = false;
 
-        emit EnableDisableSubscriprionScheme(_months,false);
+        emit EnableDisableSubscriptionScheme(_months,false);
     }
 
     /**
@@ -510,7 +512,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
         subscribtionSchemes_[_months].active = true;
 
-        emit EnableDisableSubscriprionScheme(_months,true);
+        emit EnableDisableSubscriptionScheme(_months,true);
     }
 
     /**
@@ -604,10 +606,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             msg.sender,
             users_[msg.sender].referralId,
             _months,
+            _paymentToken,
             _amount
         );
     }
-
+    
     /**
      * @dev To subscribe a plan for the user, initiated by manager.
      * @param _userAddress The users address to subscribe the plan.  
@@ -651,6 +654,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             _userAddress,
             users_[_userAddress].referralId,
             _months,
+            address(0),
             0
         );
     }
