@@ -169,6 +169,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @dev Event emitted when a user is subscribed/manager subscribes for the user.
      * @param subscriber is the users address.
      * @param userId is the users chain id.
+     * @param referedBy is the subscription period in months.
      * @param period is the subscription period in months.
      * @param subscriptionValidity . is the subscription ending timestamp
      * @param paymentToken Payment tokens address used for subscription.
@@ -178,25 +179,12 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     event Subscription(
         address indexed subscriber,
         uint256 indexed userId,
-        uint256 indexed period,
+        uint256 indexed referedBy,
+        uint256 period,
         uint256 subscriptionValidity,
         address paymentToken,
         uint256  amount
     );
-
-    /**
-     * @dev Event emitted when a user is created.
-     * @param subscriber is the users address.
-     * @param userId is the users chain id.
-     * @param userRefererId is the referred users chain id, if zero not refered by anyone else.
-    */
-
-    event CreateUser(
-        address indexed subscriber,
-        uint256 indexed userId,
-        uint256 indexed userRefererId
-    );
-
 
     /**
      * @dev modifier to check if msg.sender address is manager or admin.
@@ -607,6 +595,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         emit Subscription(
             msg.sender,
             users_[msg.sender].referralId,
+            _referredBy,
             _months,
             subscriptionValidity,
             _paymentToken,
@@ -656,6 +645,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         emit Subscription(
             _userAddress,
             users_[_userAddress].referralId,
+            _referredBy,
             _months,
             subscriptionValidity,
             address(0),
@@ -710,8 +700,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         userReferralId = userID_.current();
         users_[_userAddress] = User(userReferralId, _referredBy, 0);
         usersAddress_[userReferralId] = _userAddress;
-
-        emit CreateUser(_userAddress,userReferralId,_referredBy);
     }
 
     /**

@@ -128,16 +128,13 @@ describe("Tenx Subscription", async () => {
             const receipt = await subscribe.wait();
             const block = await ethers.provider.getBlock(receipt.blockNumber);
             const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
-    
-            await expect(subscribe)
-                .to.emit(tenxV1, "CreateUser")
-                .withArgs(subscriber.address,1,0);
 
             await expect(subscribe)
                 .to.emit(tenxV1, "Subscription")
                 .withArgs(
                     subscriber.address,
                     1,
+                    0,
                     subscriptionSchemes[0].month,
                     validity,
                     paymentTokenBnb.address,
@@ -235,7 +232,7 @@ describe("Tenx Subscription", async () => {
             )).to.be.revertedWith("TenX: Invalid referredBy");
         });
 
-        it("Should able to refer a user and subscribe and emit event", async () => {
+        it("Should able to refer a user and subscribe", async () => {
             const { tenxV1, subscriber, subscriber2, paymentTokenBnb } = await loadFixture(deployTenxFixture);
             const discount = 0
             const subscriptionAmount = await tenxV1.getSubscriptionAmount(
@@ -260,10 +257,6 @@ describe("Tenx Subscription", async () => {
                 discount,
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
-            
-            await expect(subscribe)
-                .to.emit(tenxV1, "CreateUser")
-                .withArgs(subscriber2.address,2,subscriber1Info.referalId);
         
             expect(subscribe).to.have.property('hash')
             const subscriber2Info = await tenxV1.getUserInfo(subscriber2.address)
@@ -318,6 +311,7 @@ describe("Tenx Subscription", async () => {
                 .withArgs(
                     subscriber.address,
                     1,
+                    0,
                     subscriptionSchemes[0].month,
                     initialSubscriptionValidity.add(schemeValidity),
                     paymentTokenBnb.address,
@@ -584,16 +578,13 @@ describe("Tenx Subscription", async () => {
             const receipt = await subscribe.wait();
             const block = await ethers.provider.getBlock(receipt.blockNumber);
             const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
-    
-            await expect(subscribe)
-                .to.emit(tenxV1, "CreateUser")
-                .withArgs(subscriber.address,1,0);
 
             await expect(subscribe)
                 .to.emit(tenxV1, "Subscription")
                 .withArgs(
                     subscriber.address,
                     1,
+                    0,
                     subscriptionSchemes[0].month,
                     validity,
                     paymentTokenBusd.address,
@@ -733,6 +724,7 @@ describe("Tenx Subscription", async () => {
                 .withArgs(
                     subscriber.address,
                     1,
+                    0,
                     subscriptionSchemes[0].month,
                     initialSubscriptionValidity.add(schemeValidity),
                     paymentTokenBusd.address,
@@ -996,16 +988,13 @@ describe("Tenx Subscription", async () => {
             const receipt = await subscribe.wait();
             const block = await ethers.provider.getBlock(receipt.blockNumber);
             const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
-        
-            await expect(subscribe)
-                .to.emit(tenxV1, "CreateUser")
-                .withArgs(subscriber.address,1,0);
 
             await expect(subscribe)
                 .to.emit(tenxV1, "Subscription")
                 .withArgs(
                     subscriber.address,
                     1,
+                    0,
                     subscriptionSchemes[0].month,
                     validity,
                     zeroAddress,
@@ -1018,6 +1007,52 @@ describe("Tenx Subscription", async () => {
                 .to.be.not.equal(0)
             expect(userSubscription).to.have.property('referrerId')
                 .to.be.equal(0)
+        });
+
+        it("Should be able for manager to give free subscription to user with referals and emit event", async () => {
+            const { tenxV1, subscriber, subscriber1 } = await loadFixture(deployTenxFixture);
+            const zeroAddress = ethers.constants.AddressZero;
+
+            await tenxV1.addSubscriptionForUser(
+                subscriber1.address,
+                subscriptionSchemes[0].month,
+                0
+            )
+
+            
+            const initialSubscriber = await tenxV1.getUserInfo(subscriber1.address) 
+            expect(initialSubscriber).to.have.property('referalId')
+                .to.be.not.equal(0)
+
+            const subscribe = await tenxV1.addSubscriptionForUser(
+                subscriber.address,
+                subscriptionSchemes[0].month,
+                initialSubscriber.referalId
+            )
+            expect(subscribe).to.have.property('hash')
+
+            const receipt = await subscribe.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
+
+            await expect(subscribe)
+                .to.emit(tenxV1, "Subscription")
+                .withArgs(
+                    subscriber.address,
+                    2,
+                    initialSubscriber.referalId,
+                    subscriptionSchemes[0].month,
+                    validity,
+                    zeroAddress,
+                    0);
+    
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscription).to.have.property('isSubscriptionActive')
+                .to.be.true
+            expect(userSubscription).to.have.property('referalId')
+                .to.be.not.equal(0)
+            expect(userSubscription).to.have.property('referrerId')
+                .to.be.equal(initialSubscriber.referalId)
         });
 
         it("Should recieve affiliate share for manager subscribed users", async () => {
