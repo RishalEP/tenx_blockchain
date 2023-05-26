@@ -126,6 +126,10 @@ describe("Tenx Subscription", async () => {
             )
             expect(subscribe).to.have.property('hash')
 
+            const receipt = await subscribe.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
+    
             await expect(subscribe)
                 .to.emit(tenxV1, "CreateUser")
                 .withArgs(subscriber.address,1,0);
@@ -136,6 +140,7 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     subscriptionSchemes[0].month,
+                    validity,
                     paymentTokenBnb.address,
                     subscriptionAmount);
 
@@ -277,7 +282,7 @@ describe("Tenx Subscription", async () => {
                 paymentTokenBnb.address,
                 discount
             )
-            await tenxV1.connect(subscriber).subscribe(
+            const initialSubscription = await tenxV1.connect(subscriber).subscribe(
                 subscriptionAmount,
                 subscriptionSchemes[0].month,
                 0,
@@ -285,6 +290,20 @@ describe("Tenx Subscription", async () => {
                 discount,
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
+
+            expect(initialSubscription).to.have.property('hash')
+            const initialReceipt = await initialSubscription.wait();
+            const event = initialReceipt.events.find((event) =>
+                    event.event === 'Subscription'
+                );
+            const block = await ethers.provider.getBlock(initialReceipt.blockNumber);
+            const schemeValidity = subscriptionSchemes[0].month * 30 * 24 * 60 * 60
+            const validity = block.timestamp + schemeValidity;
+            expect(event).to.not.be.undefined;
+            expect(event.args.subscriptionValidity).to.equal(validity);
+           
+            const initialSubscriptionValidity = event.args.subscriptionValidity;
+
             const subscribe = await tenxV1.connect(subscriber).subscribe(
                 subscriptionAmount,
                 subscriptionSchemes[0].month,
@@ -294,6 +313,16 @@ describe("Tenx Subscription", async () => {
                 { value: ethers.BigNumber.from(subscriptionAmount) }
             )
             expect(subscribe).to.have.property('hash')
+
+            await expect(subscribe)
+                .to.emit(tenxV1, "Subscription")
+                .withArgs(
+                    subscriber.address,
+                    1,
+                    subscriptionSchemes[0].month,
+                    initialSubscriptionValidity.add(schemeValidity),
+                    paymentTokenBnb.address,
+                    subscriptionAmount);
         });
 
         it("Should be able to subscribe on discount if applicable ", async () => {
@@ -553,7 +582,10 @@ describe("Tenx Subscription", async () => {
                 discount,
             )
             expect(subscribe).to.have.property('hash')
-            
+            const receipt = await subscribe.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
+    
             await expect(subscribe)
                 .to.emit(tenxV1, "CreateUser")
                 .withArgs(subscriber.address,1,0);
@@ -564,6 +596,7 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     subscriptionSchemes[0].month,
+                    validity,
                     paymentTokenBusd.address,
                     subscriptionAmount);
     
@@ -666,13 +699,26 @@ describe("Tenx Subscription", async () => {
             )
             await busd.mint(subscriber.address,1000)
             await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
-            await tenxV1.connect(subscriber).subscribe(
+            const initialSubscription = await tenxV1.connect(subscriber).subscribe(
                 subscriptionAmount,
                 subscriptionSchemes[0].month,
                 0,
                 paymentTokenBusd.address,
                 discount,
             )
+            expect(initialSubscription).to.have.property('hash')
+            const initialReceipt = await initialSubscription.wait();
+            const event = initialReceipt.events.find((event) =>
+                    event.event === 'Subscription'
+                );
+            const block = await ethers.provider.getBlock(initialReceipt.blockNumber);
+            const schemeValidity = subscriptionSchemes[0].month * 30 * 24 * 60 * 60
+            const validity = block.timestamp + schemeValidity;
+            expect(event).to.not.be.undefined;
+            expect(event.args.subscriptionValidity).to.equal(validity);
+           
+            const initialSubscriptionValidity = event.args.subscriptionValidity;
+        
             await busd.connect(subscriber).approve(tenxV1.address,subscriptionAmount)
             const subscribe = await tenxV1.connect(subscriber).subscribe(
                 subscriptionAmount,
@@ -682,6 +728,16 @@ describe("Tenx Subscription", async () => {
                 discount
             )
             expect(subscribe).to.have.property('hash')
+            
+            await expect(subscribe)
+                .to.emit(tenxV1, "Subscription")
+                .withArgs(
+                    subscriber.address,
+                    1,
+                    subscriptionSchemes[0].month,
+                    initialSubscriptionValidity.add(schemeValidity),
+                    paymentTokenBusd.address,
+                    subscriptionAmount);
         });
 
         it("Should be able to subscribe on discount if applicable ", async () => {
@@ -937,6 +993,10 @@ describe("Tenx Subscription", async () => {
                 0
             )
             expect(subscribe).to.have.property('hash')
+
+            const receipt = await subscribe.wait();
+            const block = await ethers.provider.getBlock(receipt.blockNumber);
+            const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
         
             await expect(subscribe)
                 .to.emit(tenxV1, "CreateUser")
@@ -948,6 +1008,7 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     subscriptionSchemes[0].month,
+                    validity,
                     zeroAddress,
                     0);
     

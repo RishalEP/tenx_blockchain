@@ -170,6 +170,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param subscriber is the users address.
      * @param userId is the users chain id.
      * @param period is the subscription period in months.
+     * @param subscriptionValidity . is the subscription ending timestamp
      * @param paymentToken Payment tokens address used for subscription.
      * @param amount is the anount spent for subscription. if zero freely subscribed by manager
     */
@@ -178,6 +179,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         address indexed subscriber,
         uint256 indexed userId,
         uint256 indexed period,
+        uint256 subscriptionValidity,
         address paymentToken,
         uint256  amount
     );
@@ -606,6 +608,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             msg.sender,
             users_[msg.sender].referralId,
             _months,
+            subscriptionValidity,
             _paymentToken,
             _amount
         );
@@ -654,6 +657,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             _userAddress,
             users_[_userAddress].referralId,
             _months,
+            subscriptionValidity,
             address(0),
             0
         );
