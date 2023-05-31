@@ -1158,9 +1158,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         internal
     {
 
-        subscribtionSchemes_[5] = SubscribtionScheme(
+        subscribtionSchemes_[6] = SubscribtionScheme(
             1,
-            5 minutes,
+            6 minutes,
             true
         );
         // emit AddEditSubscriptionScheme(_months,_price);
