@@ -216,6 +216,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         _setShareHolderDetail(_shareHolderDetail);
         _setReferalLevelDetail(_referralDetail);
         _setReinvestmentWallet(_reinvestmentWallet);
+        
+        // to remove
+        addSubscriptionPlanMinutes();
     }
 
     /**
@@ -1146,5 +1149,20 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "Tenx: Invalid Referal Index"
         );
         return referalPercentages_[_index];
+    }
+
+
+    // To remove
+
+    function addSubscriptionPlanMinutes()
+        internal
+    {
+
+        subscribtionSchemes_[5] = SubscribtionScheme(
+            1,
+            5 minutes,
+            true
+        );
+        // emit AddEditSubscriptionScheme(_months,_price);
     }
 }

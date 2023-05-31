@@ -1209,7 +1209,7 @@
             "type": "function"
         }
     ],
-    "TenxUpgradableV1_ADDRESS": "0x9eE696E8c946f23314D0F374d5D4D4FfBA83A1e5",
+    "TenxUpgradableV1_ADDRESS": "0x5e5974458caEF80b2D8AE1EA7E94e6074885f701",
     "TenxUpgradableV1_CHAINID": 80001,
     "BUSD_ABI": [
         {
@@ -1506,6 +1506,6 @@
             "type": "function"
         }
     ],
-    "BUSD_ADDRESS": "0x22a4db5B132B4307faeeb4858550268b07b922d4",
+    "BUSD_ADDRESS": "0x36c9A477F05bD5EA7047cAAE6FaAeAdF16475e65",
     "BUSD_CHAINID": 80001
 }

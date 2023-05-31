@@ -78,7 +78,7 @@
                 "address":"0xCD01461cDfa53EEA6a5F4D2Dd68ADE1A53069a70",
                 "percentage":800
             }],
-        "reinvestmentWallet":"0xCD01461cDfa53EEA6a5F4D2Dd68ADE1A53069a70",
+        "reinvestmentWallet":"0x9eb313eAa626304301aB3949e819D8F2C43340dC",
         "referalPercantage" : [1000, 800, 600, 400],
         "subscriptionSchemes":[
             {
@@ -104,7 +104,7 @@
                 "priceFeed":"0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada"
             },
             {
-                "address":"0x22a4db5B132B4307faeeb4858550268b07b922d4",
+                "address":"0x36c9A477F05bD5EA7047cAAE6FaAeAdF16475e65",
                 "priceFeed":"0x0715A7794a1dc8e42615F059dD6e406A6594651A"
             }
         ]
