@@ -90,6 +90,10 @@
                 "price":2
             },
             {
+                "month":6,
+                "price":3
+            },
+            {
                 "month":12,
                 "price":4
             }
