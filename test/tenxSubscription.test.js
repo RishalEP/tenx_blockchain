@@ -1115,4 +1115,127 @@ describe("Tenx Subscription", async () => {
                 reinvestmentInitialBalance.add(reinvestmentShare))
         });
     })
+
+    describe("Suspend Subscribers", async () => {
+        
+        it("Should be able to suspend and activate a subscriber and emit event", async () => {
+            const { tenxV1, subscriber } = await loadFixture(deployTenxFixture);
+            const zeroAddress = ethers.constants.AddressZero;
+
+            const subscribe = await tenxV1.addSubscriptionForUser(
+                subscriber.address,
+                subscriptionSchemes[0].month,
+                0
+            )
+            expect(subscribe).to.have.property('hash')
+    
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscription).to.have.property('isSubscriptionActive')
+                .to.be.true
+            expect(userSubscription).to.have.property('suspended')
+                .to.be.false
+
+            const suspend = await tenxV1.disableUser(subscriber.address)
+            expect(suspend).to.have.property('hash')
+
+            await expect(suspend)
+            .to.emit(tenxV1, "EnableDisableSubscriber")
+            .withArgs(
+                subscriber.address,
+                false
+            );
+
+            const enable = await tenxV1.enableUser(subscriber.address)
+            expect(enable).to.have.property('hash')
+
+            await expect(enable)
+            .to.emit(tenxV1, "EnableDisableSubscriber")
+            .withArgs(
+                subscriber.address,
+                true
+            );
+        });
+
+        it("Should revert if already suspended or active", async () => {
+            const { tenxV1, subscriber } = await loadFixture(deployTenxFixture);
+
+            await tenxV1.addSubscriptionForUser(
+                subscriber.address,
+                subscriptionSchemes[0].month,
+                0
+            )    
+            
+            await expect(tenxV1.enableUser(subscriber.address))
+                .to.be.revertedWith("TenX: User Already Active");
+        
+            await tenxV1.disableUser(subscriber.address)
+
+            await expect(tenxV1.disableUser(subscriber.address))
+                .to.be.revertedWith("TenX: User Already Suspended or not onboarded");
+        });
+
+        it("Should revert if suspended users subscribe", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+
+            const suspend = await tenxV1.disableUser(subscriber.address)
+            expect(suspend).to.have.property('hash')
+
+            await expect(tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )).to.be.revertedWith("TenX: User suspended");
+        });
+
+        it("Should not receive referal percentage for suspended users", async () => {
+            const { tenxV1, subscriber, subscriber1, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address)
+            await tenxV1.disableUser(subscriber.address)
+
+            const refererInitialBalance = await ethers.provider.getBalance(subscriber.address)
+
+            await tenxV1.connect(subscriber1).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                userSubscription.referalId,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+            const refererFinalBalance = await ethers.provider.getBalance(subscriber.address)
+            expect(refererInitialBalance).to.be.equal(refererFinalBalance)
+        });
+    })
 });

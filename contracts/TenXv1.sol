@@ -36,13 +36,15 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /**
      * @dev Struct representing data associated with a particular user.
      * @param referralId is users unique id.
-     * @param plan is the Subscription plan (duration) in seconds.
-     * @param active is a boolean indicating whether this scheme is currently active or not.
+     * @param referredBy is users referals id.
+     * @param subscriptionValidity is the users subscription ending timestamp.
+     * @param active boolean represents the user is suspended or not.
      */
     struct User {
         uint256 referralId;
         uint256 referredBy;
         uint256 subscriptionValidity;
+        bool active;
     }
 
     /**
@@ -162,6 +164,17 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     */
     event EnableDisableSubscriptionScheme(
         uint256 indexed months,
+        bool status
+    );
+
+
+    /**
+     * @dev Event emitted when Subscriber is enabled or disabled for subscription.
+     * @param userAddress is the users Address.
+     * @param status is the boolean representing wether enabled or disabled.
+    */
+    event EnableDisableSubscriber(
+        address indexed userAddress,
         bool status
     );
 
@@ -490,6 +503,41 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     /**
      * @dev To enable a subscripion plan.
+     * @param _userAddress The Users Address To Enable.  
+     */
+    function enableUser(address _userAddress)
+        external
+        isManager
+    {
+        require(
+            !users_[_userAddress].active,
+            "TenX: User Already Active"
+        );
+        users_[_userAddress].active = true;
+
+        emit EnableDisableSubscriber(_userAddress,true);
+    }
+
+
+    /**
+     * @dev To enable a subscripion plan.
+     * @param _userAddress The Users Address To Enable.  
+     */
+    function disableUser(address _userAddress)
+        external
+        isManager
+    {
+        require(
+            users_[_userAddress].active,
+            "TenX: User Already Suspended or not onboarded"
+        );
+        users_[_userAddress].active = false;
+
+        emit EnableDisableSubscriber(_userAddress,false);
+    }
+
+    /**
+     * @dev To enable a subscripion plan.
      * @param _months The plans duration in months.  
      */
     function enableSubscribtionPlan(uint256 _months)
@@ -572,14 +620,19 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         } else require(_amount == msg.value, "TenX: Mismatch in Amount send");
 
         uint256 amountAfterReferals = _amount;
-        User memory user = users_[msg.sender];
 
-        if (user.referralId == 0) {
+        if (users_[msg.sender].referralId == 0) {
             _createUser(msg.sender, _referredBy);
             amountAfterReferals -= _processReferrals(
                 _referredBy,
                 _amount,
                 _paymentToken
+            );
+        }
+        else {
+            require(
+                users_[msg.sender].active,
+                "TenX: User suspended"
             );
         }
 
@@ -616,6 +669,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         uint256 _months, 
         uint256 _referredBy
     ) external isManager {
+
         require(
             subscribtionSchemes_[_months].active,
             "TenX: Subscription plan not active"
@@ -629,10 +683,14 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             );
         }
 
-        User memory user = users_[_userAddress];
-
-        if (user.referralId == 0) {
+        if (users_[_userAddress].referralId == 0) {
             _createUser(_userAddress, _referredBy);
+        }
+        else {
+            require(
+                users_[_userAddress].active,
+                "TenX: User suspended"
+            );
         }
 
         uint256 subscriptionValidity = 
@@ -698,7 +756,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     {
         userID_.increment();
         userReferralId = userID_.current();
-        users_[_userAddress] = User(userReferralId, _referredBy, 0);
+        users_[_userAddress] = User(userReferralId, _referredBy, 0, true);
         usersAddress_[userReferralId] = _userAddress;
     }
 
@@ -726,7 +784,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
                 totalReferralRewards += referralReward;
 
                 address to = 
-                    users_[referralList[i]].subscriptionValidity > block.timestamp ?
+                    (users_[referralList[i]].active &&
+                      (users_[referralList[i]].subscriptionValidity > block.timestamp)) ?
                     referralList[i] :
                     reInvestmentWallet_;
 
@@ -1019,7 +1078,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @return referrerId The Id of the referrer.
      * @return referrerAddress The Address of the referrer.
      * @return isSubscriptionActive The Boolean representing wether subscribed now
-     * 
+     * @return suspended The Boolean representing wether user suspended or not
      * If the provided _id doesn't exist, reverts with an error message.
      */
 
@@ -1029,7 +1088,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         uint256 referalId, 
         uint256 referrerId, 
         address referrerAddress, 
-        bool isSubscriptionActive
+        bool isSubscriptionActive,
+        bool suspended
     ) {
         require(
             userID_.current() >= users_[_userAddress].referralId &&
@@ -1040,6 +1100,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         referrerId = users_[_userAddress].referredBy;
         referrerAddress = usersAddress_[referrerId];
         isSubscriptionActive = block.timestamp < users_[_userAddress].subscriptionValidity;
+        suspended = !users_[_userAddress].active;
     }
 
        /**
