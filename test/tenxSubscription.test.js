@@ -38,8 +38,8 @@ describe("Tenx Subscription", async () => {
             { initializer: "initialize" }
         );
 
-        const Busd = await ethers.getContractFactory("BUSD");
-        const busd = await Busd.deploy(); 
+        const Busd = await ethers.getContractFactory("ERC20Token");
+        const busd = await Busd.deploy('BUSD Token', 'BUSD'); 
 
         await tenxV1.setReferralPercentages(
             referalPercantage
