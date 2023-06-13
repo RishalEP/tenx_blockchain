@@ -106,6 +106,10 @@
             {
                 "address":"0x36c9A477F05bD5EA7047cAAE6FaAeAdF16475e65",
                 "priceFeed":"0x0715A7794a1dc8e42615F059dD6e406A6594651A"
+            },
+            {
+                "address":"0xFB3C4515bC3bE1640ADD70643bbC59Cedc07B78e",
+                "priceFeed":"0x0715A7794a1dc8e42615F059dD6e406A6594651A"
             }
         ]
     }
