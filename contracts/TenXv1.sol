@@ -183,7 +183,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param subscriber is the users address.
      * @param userId is the users chain id.
      * @param referedBy is the subscription period in months.
-     * @param period is the subscription period in months.
      * @param subscriptionValidity . is the subscription ending timestamp
      * @param paymentToken Payment tokens address used for subscription.
      * @param amount is the anount spent for subscription. if zero freely subscribed by manager
@@ -193,10 +192,20 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         address indexed subscriber,
         uint256 indexed userId,
         uint256 indexed referedBy,
-        uint256 period,
         uint256 subscriptionValidity,
         address paymentToken,
         uint256  amount
+    );
+
+    /**
+     * @dev Event emitted when a user is subscribed/manager subscribes for the user.
+     * @param subscriber is the users address.
+     * @param endTimestamp . is the subscription ending timestamp
+    */
+
+    event CancelSubscription(
+        address indexed subscriber,
+        uint256 indexed endTimestamp
     );
 
     /**
@@ -649,7 +658,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             msg.sender,
             users_[msg.sender].referralId,
             _referredBy,
-            _months,
             subscriptionValidity,
             _paymentToken,
             _amount
@@ -659,20 +667,20 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /**
      * @dev To subscribe a plan for the user, initiated by manager.
      * @param _userAddress The users address to subscribe the plan.  
-     * @param _months The plans duration in months.  
+     * @param _validity The plans duration in timestamp.  
      * @param _referredBy The Id of the user who referes. 
 
      */
     
     function addSubscriptionForUser(
         address _userAddress, 
-        uint256 _months, 
+        uint256 _validity, 
         uint256 _referredBy
     ) external isManager {
 
         require(
-            subscribtionSchemes_[_months].active,
-            "TenX: Subscription plan not active"
+            _validity > 0,
+            "TenX: Validity Should be valid"
         );
         
         if (_referredBy != 0){
@@ -695,8 +703,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         uint256 subscriptionValidity = 
             block.timestamp < users_[_userAddress].subscriptionValidity ?
-            (users_[_userAddress].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod) :
-            (block.timestamp + subscribtionSchemes_[_months].lockingPeriod);
+            (users_[_userAddress].subscriptionValidity + _validity) :
+            (block.timestamp + _validity);
         
         users_[_userAddress].subscriptionValidity = subscriptionValidity;
 
@@ -704,11 +712,28 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             _userAddress,
             users_[_userAddress].referralId,
             _referredBy,
-            _months,
             subscriptionValidity,
             address(0),
             0
         );
+    }
+
+
+    /**
+     * @dev To cancel a users subscribtion.
+     * @param _userAddress The users address to subscribe the plan.  
+     */
+    
+    function cancelSubscriptionForUser(address _userAddress) external isManager {
+
+        require(
+            users_[_userAddress].active,
+            "TenX: User Already Suspended or not onboarded"
+        );
+        
+        users_[_userAddress].subscriptionValidity = block.timestamp;
+
+        emit CancelSubscription(_userAddress,block.timestamp);
     }
 
     /**

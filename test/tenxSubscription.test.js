@@ -135,7 +135,6 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     0,
-                    subscriptionSchemes[0].month,
                     validity,
                     paymentTokenBnb.address,
                     subscriptionAmount);
@@ -312,7 +311,6 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     0,
-                    subscriptionSchemes[0].month,
                     initialSubscriptionValidity.add(schemeValidity),
                     paymentTokenBnb.address,
                     subscriptionAmount);
@@ -585,7 +583,6 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     0,
-                    subscriptionSchemes[0].month,
                     validity,
                     paymentTokenBusd.address,
                     subscriptionAmount);
@@ -725,7 +722,6 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     0,
-                    subscriptionSchemes[0].month,
                     initialSubscriptionValidity.add(schemeValidity),
                     paymentTokenBusd.address,
                     subscriptionAmount);
@@ -972,22 +968,24 @@ describe("Tenx Subscription", async () => {
 
     });
 
-    describe("Free Subscription Initiated by Manager", async () => {
+    describe("Give/Cancel  Subscription Initiated by Manager", async () => {
         
         it("Should be able for manager to give free subscription to user and emit event", async () => {
             const { tenxV1, subscriber } = await loadFixture(deployTenxFixture);
             const zeroAddress = ethers.constants.AddressZero;
 
+            const oneDay = 1 * 24 * 60 * 60;
+
             const subscribe = await tenxV1.addSubscriptionForUser(
                 subscriber.address,
-                subscriptionSchemes[0].month,
+                oneDay,
                 0
             )
             expect(subscribe).to.have.property('hash')
 
             const receipt = await subscribe.wait();
             const block = await ethers.provider.getBlock(receipt.blockNumber);
-            const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
+            const validity = block.timestamp + oneDay;
 
             await expect(subscribe)
                 .to.emit(tenxV1, "Subscription")
@@ -995,7 +993,6 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     1,
                     0,
-                    subscriptionSchemes[0].month,
                     validity,
                     zeroAddress,
                     0);
@@ -1007,15 +1004,23 @@ describe("Tenx Subscription", async () => {
                 .to.be.not.equal(0)
             expect(userSubscription).to.have.property('referrerId')
                 .to.be.equal(0)
+
+            await ethers.provider.send("evm_increaseTime", [oneDay + 1000]);
+            await ethers.provider.send("evm_mine");
+            
+            const userSubscriptionAfter = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscriptionAfter).to.have.property('isSubscriptionActive')
+                .to.be.false
         });
 
         it("Should be able for manager to give free subscription to user with referals and emit event", async () => {
             const { tenxV1, subscriber, subscriber1 } = await loadFixture(deployTenxFixture);
             const zeroAddress = ethers.constants.AddressZero;
+            const oneDay = 1 * 24 * 60 * 60;
 
             await tenxV1.addSubscriptionForUser(
                 subscriber1.address,
-                subscriptionSchemes[0].month,
+                oneDay,
                 0
             )
 
@@ -1026,14 +1031,14 @@ describe("Tenx Subscription", async () => {
 
             const subscribe = await tenxV1.addSubscriptionForUser(
                 subscriber.address,
-                subscriptionSchemes[0].month,
+                oneDay,
                 initialSubscriber.referalId
             )
             expect(subscribe).to.have.property('hash')
 
             const receipt = await subscribe.wait();
             const block = await ethers.provider.getBlock(receipt.blockNumber);
-            const validity = block.timestamp + (subscriptionSchemes[0].month * 30 * 24 * 60 * 60);
+            const validity = block.timestamp + oneDay;
 
             await expect(subscribe)
                 .to.emit(tenxV1, "Subscription")
@@ -1041,7 +1046,6 @@ describe("Tenx Subscription", async () => {
                     subscriber.address,
                     2,
                     initialSubscriber.referalId,
-                    subscriptionSchemes[0].month,
                     validity,
                     zeroAddress,
                     0);
@@ -1057,10 +1061,11 @@ describe("Tenx Subscription", async () => {
 
         it("Should recieve affiliate share for manager subscribed users", async () => {
             const { tenxV1, subscriber, subscriber1, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const oneDay = 1 * 24 * 60 * 60;
 
             await tenxV1.addSubscriptionForUser(
                 subscriber1.address,
-                subscriptionSchemes[0].month,
+                oneDay,
                 0
             )
             
@@ -1113,6 +1118,43 @@ describe("Tenx Subscription", async () => {
             const reinvestmentShare = remainingShare.sub(totalShares)
             expect(reinvestmentFinalBalance).to.be.equal(
                 reinvestmentInitialBalance.add(reinvestmentShare))
+        });
+
+        it("Should be able for manager to cancel subscription of user and emit event", async () => {
+            const { tenxV1, subscriber, paymentTokenBnb } = await loadFixture(deployTenxFixture);
+            const discount = 0
+            const subscriptionAmount = await tenxV1.getSubscriptionAmount(
+                subscriptionSchemes[0].month,
+                paymentTokenBnb.address,
+                discount
+            )
+            await tenxV1.connect(subscriber).subscribe(
+                subscriptionAmount,
+                subscriptionSchemes[0].month,
+                0,
+                paymentTokenBnb.address,
+                discount,
+                { value: ethers.BigNumber.from(subscriptionAmount) }
+            )
+
+            const userSubscription = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscription).to.have.property('isSubscriptionActive')
+                .to.be.true
+            
+            const cancelSubscription = await tenxV1.cancelSubscriptionForUser(subscriber.address)
+            expect(cancelSubscription).to.have.property('hash')
+            const cancelReceipt = await cancelSubscription.wait();
+            const block = await ethers.provider.getBlock(cancelReceipt.blockNumber);
+
+            await expect(cancelSubscription)
+            .to.emit(tenxV1, "CancelSubscription")
+            .withArgs(
+                subscriber.address,
+                block.timestamp);
+
+            const userSubscriptionAfter = await tenxV1.getUserInfo(subscriber.address) 
+            expect(userSubscriptionAfter).to.have.property('isSubscriptionActive')
+                .to.be.false
         });
     })
 
