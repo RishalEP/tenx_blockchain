@@ -1100,8 +1100,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      * @param _userAddress The users address to fetch info.
      *
      * @return referalId The Id of the user.
-     * @return referrerId The Id of the referrer.
-     * @return referrerAddress The Address of the referrer.
+     * @return referedBy The Id of the referrer.
+     * @return subscriptionValidity The Subscription validity timestamp.
+     * @return referedByAddress The Address of the referrer.
      * @return isSubscriptionActive The Boolean representing wether subscribed now
      * @return suspended The Boolean representing wether user suspended or not
      * If the provided _id doesn't exist, reverts with an error message.
@@ -1111,8 +1112,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         address _userAddress
     ) external view returns (
         uint256 referalId, 
-        uint256 referrerId, 
-        address referrerAddress, 
+        uint256 referedBy, 
+        uint256 subscriptionValidity,
+        address referedByAddress, 
         bool isSubscriptionActive,
         bool suspended
     ) {
@@ -1122,8 +1124,9 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
             "Tenx: User does not exists"
         );
         referalId = users_[_userAddress].referralId;
-        referrerId = users_[_userAddress].referredBy;
-        referrerAddress = usersAddress_[referrerId];
+        referedBy = users_[_userAddress].referredBy;
+        referedByAddress = usersAddress_[referedBy];
+        subscriptionValidity = users_[_userAddress].subscriptionValidity;
         isSubscriptionActive = block.timestamp < users_[_userAddress].subscriptionValidity;
         suspended = !users_[_userAddress].active;
     }
