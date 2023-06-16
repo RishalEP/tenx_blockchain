@@ -1211,12 +1211,17 @@
                 },
                 {
                     "internalType": "uint256",
-                    "name": "referrerId",
+                    "name": "referedBy",
+                    "type": "uint256"
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "subscriptionValidity",
                     "type": "uint256"
                 },
                 {
                     "internalType": "address",
-                    "name": "referrerAddress",
+                    "name": "referedByAddress",
                     "type": "address"
                 },
                 {
@@ -1595,6 +1600,6 @@
             "type": "function"
         }
     ],
-    "TenxUpgradableV1_ADDRESS": "0x9a93e37D5fb97DA3cf40D0E02f947e37aa6B2f73",
+    "TenxUpgradableV1_ADDRESS": "0x61B112ff4F1ca6899fc57E54fAe25b923F87400e",
     "TenxUpgradableV1_CHAINID": 80001
 }
