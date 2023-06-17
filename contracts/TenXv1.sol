@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -19,7 +18,6 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    using CountersUpgradeable for CountersUpgradeable.Counter;
 
     /**
      * @dev Struct defining the parameters of a Subscription scheme.
@@ -35,16 +33,15 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     /**
      * @dev Struct representing data associated with a particular user.
-     * @param referralId is users unique id.
-     * @param referredBy is users referals id.
+     * @param referredBy is referal users address.
      * @param subscriptionValidity is the users subscription ending timestamp.
      * @param active boolean represents the user is suspended or not.
      */
     struct User {
-        uint256 referralId;
-        uint256 referredBy;
+        address referredBy;
         uint256 subscriptionValidity;
         bool active;
+        bool registered;
     }
 
     /**
@@ -57,7 +54,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         bool active;
     }
 
-     /**
+    /**
      * @dev Struct representing each shareholder details.
      * @param name is name of share holder.
      * @param holderAddress is address of share holder.
@@ -84,20 +81,14 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     /// Constant representing the manager role.
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
-    /// Variable to store failed transaction BNB.
+    ///  To store failed transaction BNB.
     uint256 internal BNBFromFailedTransfers_;
-
-    /// Counter to keep track of the total users.
-    CountersUpgradeable.Counter internal userID_;
     
     /// Variable to store re investment wallet.
     address internal reInvestmentWallet_;
 
     /// Mapping to store all the users created.
     mapping(address => User) internal users_;
-
-    /// Mapping to store the users referalId to address
-    mapping(uint256 => address) public usersAddress_; 
     
     /// Mapping to payment all the payment tokens created.
     mapping(address => PaymentToken) internal paymentTokens_;
@@ -178,11 +169,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         bool status
     );
 
+
     /**
      * @dev Event emitted when a user is subscribed/manager subscribes for the user.
      * @param subscriber is the users address.
-     * @param userId is the users chain id.
-     * @param referedBy is the subscription period in months.
+     * @param referedBy is the referal users address.
      * @param subscriptionValidity . is the subscription ending timestamp
      * @param paymentToken Payment tokens address used for subscription.
      * @param amount is the anount spent for subscription. if zero freely subscribed by manager
@@ -190,11 +181,24 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     event Subscription(
         address indexed subscriber,
-        uint256 indexed userId,
-        uint256 indexed referedBy,
-        uint256 subscriptionValidity,
+        address indexed referedBy,
+        uint256 indexed subscriptionValidity,
         address paymentToken,
-        uint256  amount
+        uint256 amount
+    );
+
+
+    /**
+     * @dev Event emitted when a user is subscribed/manager subscribes for the user.
+     * @param subscriber is the users address.
+     * @param referedBy is the referal users address.
+     * @param subscriptionValidity . is the subscription ending timestamp
+    */
+
+    event FreeSubscription(
+        address indexed subscriber,
+        address indexed referedBy,
+        uint256 indexed subscriptionValidity
     );
 
     /**
@@ -208,7 +212,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         uint256 indexed endTimestamp
     );
 
-    /**
+     /**
      * @dev modifier to check if msg.sender address is manager or admin.
      */
     modifier isManager() {
@@ -260,46 +264,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         _unpause();
     }
 
-
-    /**
-     * @dev Updates the Total Share holder Levels and Percentage.
-     * @param _names The Array of share holder names.   
-     * @param _userAddresses The Array of share holder Addresses.   
-     * @param _sharePercants The Array of share holder shares .   
-     */
-    function setShareHolders(
-        string[] memory _names, 
-        address[] memory _userAddresses, 
-        uint256[] memory _sharePercants
-    ) external isManager {
-        require(
-            _names.length ==
-            _userAddresses.length && 
-            _sharePercants.length == 
-            holderShares_.totalLevels &&
-            _sharePercants.length == 
-            _userAddresses.length,
-            "Tenx: Share Holder Level Mismsatch in Inputs"
-        );
-        _setShareHolders(_names,_userAddresses,_sharePercants);
-    }
-
-    /**
-     * @dev set Referral Percentages for the affiliates.
-     * @param _sharePercant The Array of referal percentages.   
-     */
-
-    function setReferralPercentages(
-        uint256[] memory _sharePercant
-    ) external isManager {
-         require(
-            referalShares_.totalLevels ==
-            _sharePercant.length,
-            "Tenx: Input Length Mismatch"
-        );
-        _setReferralPercentages(_sharePercant);
-    }
-
     /**
      * @dev set Referral Percentages for the affiliates.
      * @param _holderDetail The Struct `Shares` represents new share details.   
@@ -326,7 +290,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         _setShareHolderDetail(_holderDetail);
         _setShareHolders(_names,_userAddresses,_sharePercants);
     }
-
 
     /**
      * @dev set ShareHolders Info In Detail.
@@ -512,6 +475,23 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     /**
      * @dev To enable a subscripion plan.
+     * @param _months The plans duration in months.  
+     */
+    function enableSubscribtionPlan(uint256 _months)
+        external
+        isManager
+    {
+        require(
+            !subscribtionSchemes_[_months].active,
+            "TenX: Plan Already Active"
+        );
+        subscribtionSchemes_[_months].active = true;
+
+        emit EnableDisableSubscriptionScheme(_months,true);
+    }
+
+    /**
+     * @dev To enable a subscripion plan.
      * @param _userAddress The Users Address To Enable.  
      */
     function enableUser(address _userAddress)
@@ -546,24 +526,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
-     * @dev To enable a subscripion plan.
-     * @param _months The plans duration in months.  
-     */
-    function enableSubscribtionPlan(uint256 _months)
-        external
-        isManager
-    {
-        require(
-            !subscribtionSchemes_[_months].active,
-            "TenX: Plan Already Active"
-        );
-        subscribtionSchemes_[_months].active = true;
-
-        emit EnableDisableSubscriptionScheme(_months,true);
-    }
-
-    /**
-     * @dev To fetch the subscribtion amount for a plan.
+     * @dev To get the subscribtion amount for a plan.
      * @param _months The months for the plan .  
      * @param _paymentToken The token used for payments .  
      * @param _discountPercant percentage of discount to apply .  
@@ -586,20 +549,22 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     /**
      * @dev To subscribe a plan for the user.
+     * @param _subscriber The users address to subscribe.  
+     * @param _referredBy The referred by users address.  
      * @param _amount The amount send to subscribe.  
      * @param _months The plans duration in months.  
-     * @param _referredBy The Id of the user who referes.  
      * @param _paymentToken payment token address.  
      * @param _discountPercant the discount percentage.  
 
      */
     function subscribe(
+        address _subscriber,
+        address _referredBy,
         uint256 _amount,
         uint256 _months,
-        uint256 _referredBy,
         address _paymentToken,
-        uint256 _discountPercant
-    ) external payable {
+        uint256 _discountPercant ) 
+        external payable {
         require(
             subscribtionSchemes_[_months].active,
             "TenX: Subscription plan not active"
@@ -613,10 +578,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
                 _months, _paymentToken, _discountPercant) <= _amount,
             "TenX: amount paid less. increase slippage"
         );
-        if (_referredBy != 0){
+        if (_referredBy != address(0)){
             require(
-                _referredBy <= userID_.current(),
-                "TenX: Invalid referredBy"
+                users_[_referredBy].registered,
+                "TenX: Refered By User Not Onboarded Yet"
             );
         }
         if (_paymentToken != address(0)) {
@@ -630,8 +595,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
         uint256 amountAfterReferals = _amount;
 
-        if (users_[msg.sender].referralId == 0) {
-            _createUser(msg.sender, _referredBy);
+        if (!users_[_subscriber].registered) {
+            users_[_subscriber] = User(_referredBy, 0, true, true);
             amountAfterReferals -= _processReferrals(
                 _referredBy,
                 _amount,
@@ -640,7 +605,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         }
         else {
             require(
-                users_[msg.sender].active,
+                users_[_subscriber].active,
                 "TenX: User suspended"
             );
         }
@@ -655,85 +620,159 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         users_[msg.sender].subscriptionValidity = subscriptionValidity;
 
         emit Subscription(
-            msg.sender,
-            users_[msg.sender].referralId,
+            _subscriber,
             _referredBy,
             subscriptionValidity,
             _paymentToken,
             _amount
         );
     }
-    
+
     /**
      * @dev To subscribe a plan for the user, initiated by manager.
-     * @param _userAddress The users address to subscribe the plan.  
-     * @param _validity The plans duration in timestamp.  
-     * @param _referredBy The Id of the user who referes. 
-
+     * @param _subscriber The users address to subscribe the plan.  
+     * @param _referredBy The address of the user who referes.
+     * @param _validity The plans duration in timestamp.   
      */
     
     function addSubscriptionForUser(
-        address _userAddress, 
-        uint256 _validity, 
-        uint256 _referredBy
+        address _subscriber, 
+        address _referredBy,
+        uint256 _validity
     ) external isManager {
 
         require(
             _validity > 0,
-            "TenX: Validity Should be valid"
+            "TenX: Validity Should be valid timestamp"
         );
         
-        if (_referredBy != 0){
+        if (_referredBy != address(0)){
             require(
-                _referredBy <= userID_.current() &&
-                usersAddress_[_referredBy] != address(0),
-                "TenX: Invalid referredBy"
+                users_[_referredBy].registered,
+                "TenX: Refered By User Not Onboarded Yet"
             );
         }
 
-        if (users_[_userAddress].referralId == 0) {
-            _createUser(_userAddress, _referredBy);
+        if (!users_[_subscriber].registered) {
+            users_[_subscriber] = User(_referredBy, 0, true, true);
         }
         else {
             require(
-                users_[_userAddress].active,
+                users_[_subscriber].active,
                 "TenX: User suspended"
             );
         }
 
         uint256 subscriptionValidity = 
-            block.timestamp < users_[_userAddress].subscriptionValidity ?
-            (users_[_userAddress].subscriptionValidity + _validity) :
+            block.timestamp < users_[_subscriber].subscriptionValidity ?
+            (users_[_subscriber].subscriptionValidity + _validity) :
             (block.timestamp + _validity);
         
-        users_[_userAddress].subscriptionValidity = subscriptionValidity;
+        users_[_subscriber].subscriptionValidity = subscriptionValidity;
 
-        emit Subscription(
-            _userAddress,
-            users_[_userAddress].referralId,
+        emit FreeSubscription(
+            _subscriber,
             _referredBy,
-            subscriptionValidity,
-            address(0),
-            0
+            subscriptionValidity
         );
     }
 
 
     /**
      * @dev To cancel a users subscribtion.
-     * @param _userAddress The users address to subscribe the plan.  
+     * @param _subscriber The users address to subscribe the plan.  
      */
     
-    function cancelSubscriptionForUser(address _userAddress) external isManager {
+    function cancelSubscriptionForUser(address _subscriber) external isManager {
 
         require(
-            users_[_userAddress].active,
-            "TenX: User Already Suspended or not onboarded"
+            users_[_subscriber].registered,
+            "TenX: User not onboarded yet"
+        );
+
+        require(
+            users_[_subscriber].subscriptionValidity > block.timestamp,
+            "TenX: Users subscription already expired"
         );
         
-        users_[_userAddress].subscriptionValidity = block.timestamp;
+        users_[_subscriber].subscriptionValidity = block.timestamp;
+        emit CancelSubscription(_subscriber,block.timestamp);
+    }
 
-        emit CancelSubscription(_userAddress,block.timestamp);
+    /**
+     * @dev To process the referal payouts.
+     * @param _referredBy The Referer users address.  
+     * @param _amount The total amount received.  
+     * @param _paymentToken The Payment token fro payment received.  
+     */
+
+    function _processReferrals(
+        address _referredBy,
+        uint256 _amount,
+        address _paymentToken
+        ) internal returns (uint256 totalReferralRewards) {
+        if (_referredBy != address(0)) {
+            (address[] memory referralList, uint256 count) = _getReferralList(
+                _referredBy
+            );
+            for (uint256 i; i < count; i++) {
+                uint256 referralReward = _calculatePercentage(
+                    _amount,
+                    referalPercentages_[i]
+                );
+                totalReferralRewards += referralReward;
+
+                address to = 
+                    (users_[referralList[i]].active &&
+                      (users_[referralList[i]].subscriptionValidity > block.timestamp)) ?
+                    referralList[i] :
+                    reInvestmentWallet_;
+
+                _transferTokens(
+                    msg.sender,
+                    to,
+                    referralReward,
+                    _paymentToken
+                );
+            }
+        }
+        else{
+            totalReferralRewards = 0;
+        }
+    }
+
+    /**
+     * @dev To fetch the referal list of a user.
+     * @param _referredBy The referal users address .  
+     */
+
+    function _getReferralList(address _referredBy)
+        internal
+        view
+        returns (address[] memory, uint256) {
+        address currentReferral = _referredBy;
+        address[] memory referralList = new address[](referalShares_.totalLevels);
+        uint256 count;
+
+        for (uint256 i; i < referalShares_.totalLevels; i++) {
+            referralList[i] = currentReferral;
+            currentReferral = users_[currentReferral].referredBy;
+            count++;
+            if (currentReferral == address(0)) break;
+        }
+        return (referralList, count);
+    }
+
+    /**
+     * @dev To calculate the percentages.
+     * @param _amount The total amount received.  
+     * @param _percentage The percentage to calculate with the amount.  
+     */
+    function _calculatePercentage(uint256 _amount, uint256 _percentage)
+        internal
+        pure
+        returns (uint256 shareAmount) {
+        shareAmount = (_amount * _percentage) / 10000;
     }
 
     /**
@@ -744,7 +783,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     function _processPayment(uint256 _amount, address _paymentToken) 
         internal 
-    {
+     {
         // Share Holder Payments
         uint256 totalShareHolderAmount;
         for (uint256 i; i < holderShares_.totalLevels; i++) {
@@ -770,61 +809,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
-     * @dev To create a new user.
-     * @param _userAddress The total amount received.  
-     * @param _referredBy Id of the user who referred.  
-     */
-
-    function _createUser(address _userAddress, uint256 _referredBy)
-        internal
-        returns (uint256 userReferralId)
-    {
-        userID_.increment();
-        userReferralId = userID_.current();
-        users_[_userAddress] = User(userReferralId, _referredBy, 0, true);
-        usersAddress_[userReferralId] = _userAddress;
-    }
-
-    /**
-     * @dev To process the referal payouts.
-     * @param _referredBy Id of the user who referred.  
-     * @param _amount The total amount received.  
-     * @param _paymentToken The Payment token fro payment received.  
-     */
-
-    function _processReferrals(
-        uint256 _referredBy,
-        uint256 _amount,
-        address _paymentToken
-    ) internal returns (uint256 totalReferralRewards) {
-        if (_referredBy != 0) {
-            (address[] memory referralList, uint256 count) = _getReferralList(
-                _referredBy
-            );
-            for (uint256 i; i < count; i++) {
-                uint256 referralReward = _calculatePercentage(
-                    _amount,
-                    referalPercentages_[i]
-                );
-                totalReferralRewards += referralReward;
-
-                address to = 
-                    (users_[referralList[i]].active &&
-                      (users_[referralList[i]].subscriptionValidity > block.timestamp)) ?
-                    referralList[i] :
-                    reInvestmentWallet_;
-
-                _transferTokens(
-                    msg.sender,
-                    to,
-                    referralReward,
-                    _paymentToken
-                );
-            }
-        }
-    }
-
-    /**
      * @dev To transfer the tokens.
      * @param _from address of transaction initiated.  
      * @param _to the address to receive payment tokens.  
@@ -836,7 +820,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         address _to,
         uint256 _amount,
         address _paymentToken
-    ) internal {
+        ) internal {
         if (_amount > 0 && _to != address(0)) {
             if (_paymentToken != address(0)) {
                 if (_from == address(this))
@@ -853,43 +837,6 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
-     * @dev To calculate the percentages.
-     * @param _amount The total amount received.  
-     * @param _percentage The percentage to calculate with the amount.  
-     */
-    function _calculatePercentage(uint256 _amount, uint256 _percentage)
-        internal
-        pure
-        returns (uint256 shareAmount)
-    {
-        shareAmount = (_amount * _percentage) / 10000;
-    }
-
-
-    /**
-     * @dev To fetch the referal list of a user.
-     * @param _referredBy The id of user who refferd .  
-     */
-
-    function _getReferralList(uint256 _referredBy)
-        internal
-        view
-        returns (address[] memory, uint256)
-    {
-        uint256 currentReferralId = _referredBy;
-        address[] memory referralList = new address[](referalShares_.totalLevels);
-        uint256 count;
-
-        for (uint256 i; i < referalShares_.totalLevels; i++) {
-            referralList[i] = usersAddress_[currentReferralId];
-            currentReferralId = users_[referralList[i]].referredBy;
-            count++;
-            if (currentReferralId == 0) break;
-        }
-        return (referralList, count);
-    }
-
-    /**
      * @dev To fetch the subscribtion amount for a plan.
      * @param _months The months for the plan .  
      * @param _paymentToken The token used for payments .  
@@ -899,12 +846,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     function _getSubscriptionAmount(
         uint256 _months, 
         address _paymentToken, 
-        uint256 _discountPercant
-    )
+        uint256 _discountPercant )
         internal
         view
         returns (uint256 subscriptionAmount)
-    {
+     {
         require(
             subscribtionSchemes_[_months].active,
             "TenX: Subscrription Plan Not Active"
@@ -940,8 +886,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      */
 
     function _setReferralPercentages(
-        uint256[] memory _sharePercant
-    ) internal isManager {
+        uint256[] memory _sharePercant ) internal isManager {
         require(
             !_isShareExceedsLimit(
                 referalShares_.totalShare,
@@ -963,8 +908,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
 
     function _isShareExceedsLimit(
         uint256 _limit,
-        uint256[] memory _sharePercant
-    ) internal pure returns (bool) {
+        uint256[] memory _sharePercant ) internal pure returns (bool) {
         uint256 accumulatedShare;
         for (uint256 i; i < _sharePercant.length; i++) {
             accumulatedShare = accumulatedShare + _sharePercant[i];
@@ -981,8 +925,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     function _setShareHolders(
         string[] memory _names, 
         address[] memory _userAddresses, 
-        uint256[] memory _sharePercants
-    ) internal isManager {
+        uint256[] memory _sharePercants ) internal isManager {
         require(
             _names.length ==
             _userAddresses.length && 
@@ -1022,8 +965,7 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         uint256 _id,
         string memory _name,
         address _userAddress,
-        uint256 _share
-    ) internal {
+        uint256 _share ) internal {
         shareHolders_[_id] = ShareHolder(
             _name,
             _userAddress,
@@ -1070,7 +1012,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
        referalShares_ = _referralDetail;
     }
 
-     /**
+
+    /**
      * @dev Updates the re investment wallet address.
      * @param _reInvestmentWallet The reinvestment wallet address.   
      */
@@ -1099,10 +1042,8 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
      *
      * @param _userAddress The users address to fetch info.
      *
-     * @return referalId The Id of the user.
-     * @return referedBy The Id of the referrer.
+     * @return referedBy The address of the referrer.
      * @return subscriptionValidity The Subscription validity timestamp.
-     * @return referedByAddress The Address of the referrer.
      * @return isSubscriptionActive The Boolean representing wether subscribed now
      * @return suspended The Boolean representing wether user suspended or not
      * If the provided _id doesn't exist, reverts with an error message.
@@ -1111,27 +1052,22 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     function getUserInfo(
         address _userAddress
     ) external view returns (
-        uint256 referalId, 
-        uint256 referedBy, 
+        address referedBy, 
         uint256 subscriptionValidity,
-        address referedByAddress, 
         bool isSubscriptionActive,
         bool suspended
     ) {
         require(
-            userID_.current() >= users_[_userAddress].referralId &&
-            users_[_userAddress].referralId !=0 ,
+            users_[_userAddress].registered,
             "Tenx: User does not exists"
         );
-        referalId = users_[_userAddress].referralId;
         referedBy = users_[_userAddress].referredBy;
-        referedByAddress = usersAddress_[referedBy];
         subscriptionValidity = users_[_userAddress].subscriptionValidity;
         isSubscriptionActive = block.timestamp < users_[_userAddress].subscriptionValidity;
         suspended = !users_[_userAddress].active;
     }
 
-       /**
+    /**
      * @dev Retrieves the information of the payment token.
      *
      * @param _paymentToken The Payment Token.
@@ -1237,3 +1173,18 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         return referalPercentages_[_index];
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
