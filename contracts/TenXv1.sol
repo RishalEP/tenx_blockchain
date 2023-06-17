@@ -311,6 +311,46 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
+     * @dev Updates the Total Share holder Levels and Percentage.
+     * @param _names The Array of share holder names.   
+     * @param _userAddresses The Array of share holder Addresses.   
+     * @param _sharePercants The Array of share holder shares .   
+     */
+    function setShareHolders(
+        string[] memory _names, 
+        address[] memory _userAddresses, 
+        uint256[] memory _sharePercants
+    ) external isManager {
+        require(
+            _names.length ==
+            _userAddresses.length && 
+            _sharePercants.length == 
+            holderShares_.totalLevels &&
+            _sharePercants.length == 
+            _userAddresses.length,
+            "Tenx: Share Holder Level Mismsatch in Inputs"
+        );
+        _setShareHolders(_names,_userAddresses,_sharePercants);
+    }
+
+    /**
+     * @dev set Referral Percentages for the affiliates.
+     * @param _sharePercant The Array of referal percentages.   
+     */
+
+    function setReferralPercentages(
+        uint256[] memory _sharePercant
+    ) external isManager {
+         require(
+            referalShares_.totalLevels ==
+            _sharePercant.length,
+            "Tenx: Input Length Mismatch"
+        );
+        _setReferralPercentages(_sharePercant);
+    }
+
+
+    /**
      * @dev Updates Affiliates and ShareHolder Total Share.
      * @param _reInvestmentWallet The Reinvestmentwallet Address.   
      */
@@ -580,6 +620,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
         if (_referredBy != address(0)){
             require(
+                _subscriber != _referredBy,
+                "TenX: Subscriber cant be the referer"
+            );
+            require(
                 users_[_referredBy].registered,
                 "TenX: Refered By User Not Onboarded Yet"
             );
@@ -613,11 +657,11 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         _processPayment(amountAfterReferals, _paymentToken);
 
         uint256 subscriptionValidity = 
-            users_[msg.sender].subscriptionValidity > block.timestamp ?
-            users_[msg.sender].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod :
+            users_[_subscriber].subscriptionValidity > block.timestamp ?
+            users_[_subscriber].subscriptionValidity + subscribtionSchemes_[_months].lockingPeriod :
             block.timestamp + subscribtionSchemes_[_months].lockingPeriod;
         
-        users_[msg.sender].subscriptionValidity = subscriptionValidity;
+        users_[_subscriber].subscriptionValidity = subscriptionValidity;
 
         emit Subscription(
             _subscriber,
@@ -647,6 +691,10 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         );
         
         if (_referredBy != address(0)){
+            require(
+                _subscriber != _referredBy,
+                "TenX: Subscriber cant be the referer"
+            );
             require(
                 users_[_referredBy].registered,
                 "TenX: Refered By User Not Onboarded Yet"
