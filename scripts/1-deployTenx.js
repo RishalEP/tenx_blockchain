@@ -14,7 +14,6 @@ async function main() {
         shareHolderLimit,
         referalLimit
    } = chainCheck ? MAINNET_VALUES : TESTNET_VALUES
-    console.log({reinvestmentWallet})
     const TENX = await ethers.getContractFactory("TenxUpgradableV1");
     const TenXABI = (await artifacts.readArtifact('TenxUpgradableV1')).abi
     await saveToConfig('TenxUpgradableV1', 'ABI', TenXABI)

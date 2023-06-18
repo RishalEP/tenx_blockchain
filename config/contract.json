@@ -613,6 +613,31 @@
             "anonymous": false,
             "inputs": [
                 {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "subscriber",
+                    "type": "address"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "referedBy",
+                    "type": "address"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "uint256",
+                    "name": "subscriptionValidity",
+                    "type": "uint256"
+                }
+            ],
+            "name": "FreeSubscription",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
                     "indexed": false,
                     "internalType": "uint8",
                     "name": "version",
@@ -734,18 +759,12 @@
                 },
                 {
                     "indexed": true,
-                    "internalType": "uint256",
-                    "name": "userId",
-                    "type": "uint256"
+                    "internalType": "address",
+                    "name": "referedBy",
+                    "type": "address"
                 },
                 {
                     "indexed": true,
-                    "internalType": "uint256",
-                    "name": "referedBy",
-                    "type": "uint256"
-                },
-                {
-                    "indexed": false,
                     "internalType": "uint256",
                     "name": "subscriptionValidity",
                     "type": "uint256"
@@ -827,17 +846,17 @@
             "inputs": [
                 {
                     "internalType": "address",
-                    "name": "_userAddress",
+                    "name": "_subscriber",
+                    "type": "address"
+                },
+                {
+                    "internalType": "address",
+                    "name": "_referredBy",
                     "type": "address"
                 },
                 {
                     "internalType": "uint256",
                     "name": "_validity",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "uint256",
-                    "name": "_referredBy",
                     "type": "uint256"
                 }
             ],
@@ -868,7 +887,7 @@
             "inputs": [
                 {
                     "internalType": "address",
-                    "name": "_userAddress",
+                    "name": "_subscriber",
                     "type": "address"
                 }
             ],
@@ -1205,24 +1224,14 @@
             "name": "getUserInfo",
             "outputs": [
                 {
-                    "internalType": "uint256",
-                    "name": "referalId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "uint256",
+                    "internalType": "address",
                     "name": "referedBy",
-                    "type": "uint256"
+                    "type": "address"
                 },
                 {
                     "internalType": "uint256",
                     "name": "subscriptionValidity",
                     "type": "uint256"
-                },
-                {
-                    "internalType": "address",
-                    "name": "referedByAddress",
-                    "type": "address"
                 },
                 {
                     "internalType": "bool",
@@ -1511,6 +1520,16 @@
         {
             "inputs": [
                 {
+                    "internalType": "address",
+                    "name": "_subscriber",
+                    "type": "address"
+                },
+                {
+                    "internalType": "address",
+                    "name": "_referredBy",
+                    "type": "address"
+                },
+                {
                     "internalType": "uint256",
                     "name": "_amount",
                     "type": "uint256"
@@ -1518,11 +1537,6 @@
                 {
                     "internalType": "uint256",
                     "name": "_months",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "uint256",
-                    "name": "_referredBy",
                     "type": "uint256"
                 },
                 {
@@ -1579,27 +1593,8 @@
             "outputs": [],
             "stateMutability": "nonpayable",
             "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "",
-                    "type": "uint256"
-                }
-            ],
-            "name": "usersAddress_",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
         }
     ],
-    "TenxUpgradableV1_ADDRESS": "0x61B112ff4F1ca6899fc57E54fAe25b923F87400e",
+    "TenxUpgradableV1_ADDRESS": "0xf06D78C8c9DCba5CE75644fC245659b4065942AF",
     "TenxUpgradableV1_CHAINID": 80001
 }
