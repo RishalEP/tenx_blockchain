@@ -1221,18 +1221,3 @@ contract TenxUpgradableV1 is AccessControlUpgradeable, PausableUpgradeable {
         return referalPercentages_[_index];
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
